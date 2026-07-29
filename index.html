@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Previsão Inteligente & BI Corporativo</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --primary: #2c3e50; --secondary: #1abc9c; --accent: #3498db; --danger: #e74c3c; --success: #2ecc71; --light: #ecf0f1; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; }
+    .wrapper { display: flex; min-height: 100vh; }
+    .sidebar { width: 280px; background-color: var(--primary); color: var(--light); padding: 20px; box-shadow: 2px 0 5px rgba(0,0,0,0.1); display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
+    .sidebar h2 { color: var(--light); text-align: center; margin-bottom: 25px; font-size: 1.3em; font-weight: 700; }
+    .sidebar .nav-btn { display: block; padding: 12px 15px; margin-bottom: 8px; background-color: #34495e; color: var(--light); text-decoration: none; border-radius: 6px; transition: all 0.3s ease; font-size: 1em; border: none; text-align: left; width: 100%; cursor: pointer; }
+    .sidebar .nav-btn:hover { background-color: var(--secondary); transform: translateX(5px); }
+    .sidebar .nav-btn.active { background-color: #16a085; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+    .main-content { flex-grow: 1; padding: 30px; background-color: var(--light); }
+    .header { background-color: #ffffff; padding: 20px 30px; border-radius: 8px; margin-bottom: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { margin: 0; color: var(--primary); font-size: 1.6em; font-weight: 600; }
+    .view { display: none; } .view.active { display: block; }
+    .card { background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 25px; border: none; }
+    .card-title { color: var(--primary); font-size: 1.2em; margin-bottom: 15px; border-bottom: 2px solid #f1f1f1; padding-bottom: 10px; font-weight: 600; }
+    .form-label { font-weight: 600; color: #34495e; font-size: 0.9em; }
+    .table thead th { background-color: var(--primary); color: var(--light); border-color: var(--primary); font-size: 0.9em; vertical-align: middle; }
+    .table tbody tr:nth-child(even) { background-color: #fcfdfe; }
+    .table tbody tr.row-weekend { background-color: #fff3cd; }
+    .table tbody tr.row-closed { background-color: #f8d7da; color: #721c24; font-weight: bold; }
+    .table tfoot th { background-color: #34495e; color: #fff; font-size: 0.9em; }
+    .chart-container { position: relative; height: 320px; width: 100%; margin-top: 15px; }
+    .alert-message { margin-top: 15px; padding: 12px; border-radius: 6px; font-weight: bold; display: none; font-size: 0.9em; }
+    .alert-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .previsao-table th, .previsao-table td { text-align: center; vertical-align: middle; font-size: 0.9em; }
+    .diff-positive { color: var(--success); font-weight: bold; }
+    .diff-negative { color: var(--danger); font-weight: bold; }
+    .diff-neutral { color: #e67e22; font-weight: bold; }
+    .kpi-card { border-left: 4px solid var(--secondary); transition: all 0.3s ease; }
+    dialog { border: none; padding: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border-radius: 8px; max-width: 550px; width: 90%; }
+    dialog::backdrop { background-color: rgba(0, 0, 0, 0.6); }
+    .editable-prev { cursor: pointer; background-color: #fffdf0; border: 1px dashed #ccc; padding: 2px 4px; border-radius: 3px; }
+    .editable-prev:focus { outline: 2px solid #3498db; background-color: #fff; }
+    
+    @keyframes pulseRed {
+      0% { background-color: #fff; box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+      50% { background-color: #f8d7da; box-shadow: 0 0 10px 2px rgba(231, 76, 60, 0.6); }
+      100% { background-color: #fff; box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4); }
+    }
+    .alert-pulse { animation: pulseRed 1.5s infinite; border-color: var(--danger) !important; color: var(--danger) !important; border-left: 4px solid var(--danger) !important; }
+
+    @media (max-width: 768px) {
+      .wrapper { flex-direction: column; }
+      .sidebar { width: 100%; height: auto; position: relative; padding: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+      .sidebar h2 { grid-column: 1 / -1; margin-bottom: 15px; font-size: 1.2em; }
+      .sidebar .nav-btn { margin-bottom: 0; padding: 10px; font-size: 0.9em; text-align: center; }
+      .sidebar .nav-btn:hover { transform: none; }
+      .main-content { padding: 15px; }
+      .header { flex-direction: column; padding: 15px; gap: 10px; text-align: center; }
+      .header h1 { font-size: 1.3em; }
+      .chart-container { height: 250px; }
+      .table { font-size: 0.75em; }
+      .table th, .table td { padding: 5px; }
+      .card { padding: 15px; margin-bottom: 15px; }
+      .kpi-card { margin-bottom: 15px; }
+      .form-control, .form-select { font-size: 0.9em; }
+      .btn { padding: 8px 12px; font-size: 0.9em; }
+      dialog { width: 95%; max-width: 95%; }
+      .modal-content { padding: 15px !important; }
+    }
+
+    @media print {
+      .sidebar, .header button, .btn, .no-print { display: none !important; }
+      .main-content { padding: 0; background-color: #fff; }
+      .card { box-shadow: none; border: 1px solid #eee; page-break-inside: avoid; }
+      .view { display: block !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <aside class="sidebar no-print">
+      <h2>🚀 BI & Preditivo</h2>
+      <button class="nav-btn active" data-view="dashboard">Dashboard Executivo</button>
+      <button class="nav-btn" data-view="historico">Faturamento Diário</button>
+      <button class="nav-btn" data-view="indicadores">Mesas e Tickets</button>
+      <button class="nav-btn" data-view="metas">Metas & Orçamento</button>
+      <button class="nav-btn" data-view="eventos">Eventos & Sazonalidade</button>
+      <button class="nav-btn" data-view="analise-eventos">Análise Comparativa de Eventos</button>
+      <button class="nav-btn" data-view="previsao">Motor Preditivo Avançado</button>
+      <button class="nav-btn" data-view="importar">Importar Dados (CSV)</button>
+      <button class="nav-btn" data-view="configuracoes">Configurações</button>
+      <button class="nav-btn" data-view="backup">Backup / Dados</button>
+    </aside>
+
+    <main class="main-content">
+      <div class="header">
+        <h1 id="viewTitle">Dashboard Executivo</h1>
+        <div>
+          <button class="btn btn-outline-success btn-sm me-2 no-print" onclick="exportToExcel()">Exportar Excel (CSV)</button>
+          <button class="btn btn-outline-dark btn-sm no-print" onclick="window.print()">Exportar Relatório PDF</button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div id="dashboard" class="view active">
+        <div class="card no-print">
+          <div class="row align-items-end">
+            <div class="col-md-3"><label for="dashboardEstabFilter" class="form-label">Estabelecimento</label><select id="dashboardEstabFilter" class="form-select" onchange="renderDashboard()"></select></div>
+            <div class="col-md-3"><label for="dashDataInicio" class="form-label">Data Início (Simulação)</label><input type="date" id="dashDataInicio" class="form-control" onchange="renderDashboard()"></div>
+            <div class="col-md-3"><label for="dashDataFim" class="form-label">Data Fim (Simulação)</label><input type="date" id="dashDataFim" class="form-control" onchange="renderDashboard()"></div>
+            <div class="col-md-3 d-flex align-items-end"><button class="btn btn-secondary btn-sm w-100" onclick="clearDashFilters()">Limpar Filtros (Mês Atual)</button></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-3"><div class="card text-center kpi-card"><h5 class="card-title" style="font-size:0.9em;">Faturamento Real (Período)</h5><p class="h3 text-dark" id="dashboardFatTotal">R$ 0,00</p><small class="text-muted" id="dashboardDiasUteis">0 dias apurados</small></div></div>
+          <div class="col-md-3"><div class="card text-center kpi-card" style="border-left-color: var(--accent);"><h5 class="card-title" style="font-size:0.9em;">Meta do Período</h5><p class="h3 text-dark" id="dashboardMetaTotal">R$ 0,00</p><small class="text-muted" id="dashboardAtingimentoMeta">Atingimento: 0%</small></div></div>
+          <div class="col-md-3"><div id="dashboardProjMesCard" class="card text-center kpi-card" style="border-left-color: #9b59b6;"><h5 class="card-title" style="font-size:0.9em;">Projeção Fim do Mês (Motor Preditivo)</h5><p class="h3 text-primary" id="dashboardProjMes">R$ 0,00</p><small class="text-muted" id="dashboardRunRateStatus">Tendência Preditiva</small></div></div>
+          <div class="col-md-3"><div class="card text-center kpi-card" style="border-left-color: var(--danger);"><h5 class="card-title" style="font-size:0.9em;">Desvio vs Meta</h5><p class="h3" id="dashboardDiferenca">R$ 0,00</p><small class="text-muted">Projeção Final</small></div></div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Real vs Meta (Por Unidade)</h5><div class="chart-container"><canvas id="dashboardChart"></canvas></div></div></div>
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Curva de Acumulado no Período</h5><div class="chart-container"><canvas id="dashboardAcumuladoChart"></canvas></div></div></div>
+        </div>
+        <div class="row">
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Evolução Diária: Real vs Projeção Preditiva</h5><div class="chart-container"><canvas id="dashboardDiarioChart"></canvas></div></div></div>
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Comparativo Anos Anteriores (YoY)</h5><div class="chart-container"><canvas id="dashboardYoYChart"></canvas></div></div></div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Distribuição do Faturamento por Dia da Semana</h5><div class="chart-container"><canvas id="dashboardPizzaDiaSemanaChart"></canvas></div></div></div>
+          <div class="col-md-6"><div class="card"><h5 class="card-title">Correlação: Mesas x Faturamento (Ticket Médio)</h5><div class="chart-container"><canvas id="dashboardScatterChart"></canvas></div></div></div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-7"><div class="card"><h5 class="card-title">Média Histórica por Dia da Semana (Previsto vs Realizado)</h5><div class="chart-container"><canvas id="dashboardDiaSemanaChart"></canvas></div></div></div>
+          <div class="col-md-5">
+            <div class="card">
+              <h5 class="card-title">Análise por Dia da Semana</h5>
+              <div class="table-responsive" style="max-height: 320px; overflow-y: auto;">
+                <table class="table table-striped table-bordered text-center" style="font-size: 0.82em;">
+                  <thead><tr><th>Dia</th><th>Média Real</th><th>Soma Real</th><th>Soma Proj.</th><th>Meta Dia</th><th>Desvio (%)</th></tr></thead>
+                  <tbody id="tabelaDiaSemanaBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h5 class="card-title">Impacto de Eventos (Mesmo Período em Anos Anteriores)</h5>
+          <div class="table-responsive">
+            <table class="table table-sm table-striped">
+              <thead><tr><th>Data</th><th>Ano</th><th>Nome do Evento</th><th>Tipo</th><th>Estab.</th></tr></thead>
+              <tbody id="dashboardEventosTable"><tr><td colspan="5" class="text-center">Nenhum evento histórico neste período.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h5 class="card-title">Matriz de Desempenho Operacional</h5>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead><tr><th>Estabelecimento</th><th>Fat. Real</th><th>Meta Período</th><th>% Atingimento</th><th>Ticket Médio Geral</th><th>Status de Risco</th></tr></thead>
+              <tbody id="dashboardMatrizTable"><tr><td colspan="6">Carregando dados...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- HISTÓRICO -->
+      <div id="historico" class="view">
+        <div class="card">
+          <div class="d-flex justify-content-between align-items-center mb-3 no-print"><h5 class="card-title mb-0">Lançamentos de Faturamento</h5><button class="btn btn-primary btn-sm" onclick="showFaturamentoModal()">+ Inserir Faturamento</button></div>
+          <div class="row mb-3 no-print">
+            <div class="col-md-3"><label class="form-label">Data Início</label><input type="date" id="histDataInicio" class="form-control" onchange="renderHistorico()"></div>
+            <div class="col-md-3"><label class="form-label">Data Fim</label><input type="date" id="histDataFim" class="form-control" onchange="renderHistorico()"></div>
+            <div class="col-md-3"><label class="form-label">Estabelecimento</label><select id="histEstab" class="form-select" onchange="renderHistorico()"></select></div>
+            <div class="col-md-3 d-flex align-items-end"><button class="btn btn-secondary w-100 btn-sm" onclick="clearHistFilters()">Limpar Filtros</button></div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead><tr><th>Data</th><th>Estabelecimento</th><th>Fat. Bruto</th><th>Caixa Evento</th><th>Fat. Líquido</th><th>Observação</th><th class="no-print">Ações</th></tr></thead>
+              <tbody id="historicoTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- INDICADORES -->
+      <div id="indicadores" class="view">
+        <div class="card no-print">
+          <div class="d-flex justify-content-between align-items-center mb-3"><h5 class="card-title mb-0">Controle de Mesas e Clientes</h5><button class="btn btn-primary btn-sm" onclick="showIndicadorModal()">+ Inserir Diário</button></div>
+          <div class="row mb-3">
+            <div class="col-md-3"><label class="form-label">Data Início</label><input type="date" id="indDataInicio" class="form-control" onchange="renderIndicadores()"></div>
+            <div class="col-md-3"><label class="form-label">Data Fim</label><input type="date" id="indDataFim" class="form-control" onchange="renderIndicadores()"></div>
+            <div class="col-md-3"><label class="form-label">Estabelecimento</label><select id="indEstabFilter" class="form-select" onchange="renderIndicadores()"></select></div>
+            <div class="col-md-3 d-flex align-items-end"><button class="btn btn-secondary w-100 btn-sm" onclick="clearIndFilters()">Limpar Filtros</button></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-4"><div class="card text-center kpi-card"><h5 class="card-title" style="font-size:0.9em;">Média de Mesas (Período)</h5><p class="h3 text-dark" id="indMedMesas">0</p></div></div>
+          <div class="col-md-4"><div class="card text-center kpi-card" style="border-left-color: var(--accent);"><h5 class="card-title" style="font-size:0.9em;">Ticket Médio (Período)</h5><p class="h3 text-dark" id="indMedTkt">R$ 0,00</p></div></div>
+          <div class="col-md-4"><div class="card text-center kpi-card" style="border-left-color: #9b59b6;"><h5 class="card-title" style="font-size:0.9em;">Total de Mesas (Período)</h5><p class="h3 text-primary" id="indTotalMesas">0</p></div></div>
+        </div>
+        <div class="card">
+          <h5 class="card-title">Comparativo Diário Lado a Lado</h5>
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+              <thead id="indicadoresDiariosHead"></thead>
+              <tbody id="indicadoresDiariosTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- METAS -->
+      <div id="metas" class="view">
+        <div class="card no-print">
+          <h5 class="card-title">Planejamento Orçamentário Mensal</h5>
+          <form id="formMetas">
+            <input type="hidden" id="metaId">
+            <div class="row mb-3">
+              <div class="col-md-3"><label class="form-label">Mês Ref.</label><select id="metaMes" class="form-select" required></select></div>
+              <div class="col-md-3"><label class="form-label">Estabelecimento</label><select id="metaEstab" class="form-select" required></select></div>
+              <div class="col-md-3"><label class="form-label">Faturamento Alvo (R$)</label><input type="text" id="metaFaturamento" class="form-control" placeholder="0,00" required oninput="calcMesasMeta()"></div>
+              <div class="col-md-3"><label class="form-label">Ticket Médio Alvo (R$)</label><input type="text" id="metaTicketMedio" class="form-control" placeholder="0,00" required oninput="calcMesasMeta()"></div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-md-3"><label class="form-label">Mesas Alvo (Calculado)</label><input type="number" id="metaMesas" class="form-control" readonly required></div>
+              <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary btn-sm me-2">Salvar Meta Mensal</button>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="clearMetaForm()">Limpar</button>
+              </div>
+            </div>
+          </form>
+        </div>
+        
+        <div class="card no-print">
+          <h5 class="card-title">Metas por Dia da Semana (Distribuição Inteligente)</h5>
+          <p class="text-muted small">Clique no botão para o sistema buscar a meta mensal salva e calcular o peso de cada dia automaticamente. Você também pode editar manualmente.</p>
+          <div class="row mb-3">
+            <div class="col-md-12">
+              <button type="button" class="btn btn-info btn-sm mb-3" onclick="calcularMetasDiariasProj()">⚙️ Calcular Metas Diárias via Projeção</button>
+            </div>
+          </div>
+          <div id="formMetasDiariasContainer">
+            <div class="row">
+              <div class="col-md-1"><label class="form-label">Dom</label><input type="text" id="metaDom" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Seg</label><input type="text" id="metaSeg" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Ter</label><input type="text" id="metaTer" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Qua</label><input type="text" id="metaQua" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Qui</label><input type="text" id="metaQui" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Sex</label><input type="text" id="metaSex" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-1"><label class="form-label">Sáb</label><input type="text" id="metaSab" class="form-control" placeholder="0,00"></div>
+              <div class="col-md-4 d-flex align-items-end"><button type="button" class="btn btn-primary btn-sm w-100" onclick="salvarMetasDiarias()">Salvar Metas Diárias</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h5 class="card-title">Metas Mensais Cadastradas</h5>
+          <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Mês</th><th>Estabelecimento</th><th>Faturamento Alvo</th><th>Ticket Alvo</th><th>Mesas Alvo</th><th class="no-print">Ações</th></tr></thead><tbody id="metasTable"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- EVENTOS -->
+      <div id="eventos" class="view">
+        <div class="card no-print" id="formEventosCard">
+          <h5 class="card-title">Gestão de Feriados e Eventos de Impacto</h5>
+          <form id="formEventos">
+            <input type="hidden" id="eventoId">
+            <div class="row mb-3">
+              <div class="col-md-3"><label class="form-label">Data Início</label><input type="date" id="eventoData" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label">Data Fim (Opcional)</label><input type="date" id="eventoDataFim" class="form-control"></div>
+              <div class="col-md-6"><label class="form-label">Nome do Evento</label><input type="text" id="eventoNome" class="form-control" required placeholder="Ex: Black Friday, Carnaval, Dia das Mães"></div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-md-3"><label class="form-label">Tipo</label><select id="eventoTipo" class="form-select" required><option value="feriado">Feriado</option><option value="evento">Evento Especial</option><option value="promocao">Ação Promocional</option><option value="fechado">Fechado / Manutenção</option></select></div>
+              <div class="col-md-3"><label class="form-label">Estabelecimento</label><select id="eventoEstab" class="form-select"></select></div>
+              <div class="col-md-3"><label class="form-label">Cidade</label><input type="text" id="eventoCidade" class="form-control"></div>
+              <div class="col-md-3">
+                <label class="form-label">Fator de Impacto Esperado (%)</label>
+                <div class="input-group">
+                  <input type="number" id="eventoImpacto" class="form-control" placeholder="0" step="0.1" value="0">
+                  <span class="input-group-text">%</span>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-12 d-flex align-items-end justify-content-end">
+                <button type="submit" class="btn btn-primary btn-sm">Cadastrar Evento</button>
+              </div>
+            </div>
+          </form>
+          <hr>
+          <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">Automação de Feriados Nacionais</h6>
+            <div class="d-flex">
+              <input type="number" id="feriadosAno" class="form-control form-control-sm me-2" placeholder="Ano" value="2026" style="width: 100px;">
+              <button class="btn btn-info btn-sm" onclick="importarFeriadosBR()">Importar Feriados Nacionais (BrasilAPI)</button>
+            </div>
+          </div>
+          <div id="msgFeriadosAPI" class="alert-message mt-2"></div>
+        </div>
+        <div class="card">
+          <h5 class="card-title">Calendário de Eventos</h5>
+          <div class="table-responsive"><table class="table table-striped"><thead><tr><th>Início</th><th>Fim</th><th>Nome</th><th>Tipo</th><th>Impacto Real (Histórico)</th><th>Impacto Esperado (%)</th><th>Estab.</th><th class="no-print">Ações</th></tr></thead><tbody id="eventosTable"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ANALISE COMPARATIVA DE EVENTOS -->
+      <div id="analise-eventos" class="view">
+        <div class="card no-print">
+          <h5 class="card-title">Análise Comparativa de Eventos e Feriados</h5>
+          <p class="text-muted small">Selecione um evento e um estabelecimento para extrairmos o Faturamento, Mesas e Ticket Médio exclusivamente deste período, comparando todos os anos em que ele ocorreu.</p>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Selecionar Evento/Feriado</label>
+              <select id="analiseEventoSelect" class="form-select" onchange="renderAnaliseEvento()">
+                <option value="">Selecione...</option>
+              </select>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Estabelecimento</label>
+              <select id="analiseEstabFilter" class="form-select" onchange="renderAnaliseEvento()">
+                <option value="">Todos os Estabelecimentos</option>
+              </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <button class="btn btn-primary btn-sm w-100" onclick="renderAnaliseEvento()">Gerar Relatório Visual</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row" id="analiseEventosKPIs">
+          <div class="col-12"><div class="card text-center text-muted">Selecione um evento para gerar a análise visual.</div></div>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card">
+              <h5 class="card-title">Faturamento Histórico do Evento (Ano a Ano)</h5>
+              <div class="chart-container"><canvas id="analiseEventoFatChart"></canvas></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card">
+              <h5 class="card-title">Mesas e Ticket Médio (Ano a Ano)</h5>
+              <div class="chart-container"><canvas id="analiseEventoTktChart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h5 class="card-title">Detalhe Analítico por Ano</h5>
+          <div class="table-responsive">
+            <table class="table table-striped table-bordered">
+              <thead>
+                <tr>
+                  <th>Ano</th>
+                  <th>Data Início</th>
+                  <th>Data Fim</th>
+                  <th>Faturamento Total</th>
+                  <th>Mesas Total</th>
+                  <th>Ticket Médio</th>
+                  <th>Variação Fat. vs Ano Ant.</th>
+                </tr>
+              </thead>
+              <tbody id="analiseEventoTableBody">
+                <tr><td colspan="7" class="text-center text-muted">Selecione um evento acima.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREVISAO -->
+      <div id="previsao" class="view">
+        <div class="card no-print">
+          <h5 class="card-title">Motor de Inteligência Preditiva & Ajuste Fino Manual de Desvios</h5>
+          <p class="text-muted small">Edite a coluna <strong>"Desvio Manual (%)"</strong> na tabela abaixo. O sistema recalcula automaticamente. Os ajustes são salvos no navegador.</p>
+          <div class="row mb-3">
+            <div class="col-md-3"><label class="form-label">Estabelecimento</label><select id="prevEstab" class="form-select" required></select></div>
+            <div class="col-md-3"><label class="form-label">Data Início da Projeção</label><input type="date" id="prevInicio" class="form-control" required></div>
+            <div class="col-md-2"><label class="form-label">Horizonte (Dias)</label><input type="number" id="prevDias" class="form-control" value="30" min="1" required></div>
+            <div class="col-md-2">
+              <label class="form-label">Modelo de Calibração</label>
+              <select id="prevCalibracao" class="form-select" onchange="toggleCustomCal()">
+                <option value="base">Tendência Padrão (0%)</option>
+                <option value="otimista">Otimista (+15%)</option>
+                <option value="conservador">Conservador (-15%)</option>
+                <option value="custom">Personalizado (%)</option>
+              </select>
+            </div>
+            <div class="col-md-2"><label class="form-label">Ajuste Fino (%)</label><input type="number" id="prevCalibracaoCustom" class="form-control" value="0" step="0.5" disabled></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-8 d-flex align-items-center">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="prevFiltrarEventos" onchange="atualizarTabelaPrevisao(lastFatAnoAnterior, lastAnoAtual, lastAnoAnterior, lastEstabId)">
+                <label class="form-check-label" for="prevFiltrarEventos">Filtrar tabela para mostrar <strong>apenas dias com Eventos/Feriados</strong></label>
+              </div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end justify-content-end">
+              <button id="btnGerarPrevisao" class="btn btn-success btn-sm me-2">Rodar Motor Preditivo</button>
+              <button id="btnSalvarAjustes" class="btn btn-warning btn-sm" onclick="salvarAjustesPrevisao()">Salvar Ajustes Manuais</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-3"><div class="card text-center"><h6 class="text-muted">Acurácia Histórica (MAPE)</h6><h4 id="prevMapeScore" class="text-info">--%</h4><small class="text-muted">Erro médio percentual</small></div></div>
+          <div class="col-md-3"><div class="card text-center"><h6 class="text-muted">Faturamento Total Previsto</h6><h4 id="prevTotalSoma" class="text-success">R$ 0,00</h4><small class="text-muted">No horizonte selecionado</small></div></div>
+          <div class="col-md-3"><div class="card text-center"><h6 class="text-muted">Média Diária Projetada</h6><h4 id="prevMediaDiaria" class="text-primary">R$ 0,00</h4><small class="text-muted">Por dia útil/fim de semana</small></div></div>
+          <div class="col-md-3"><div class="card text-center"><h6 class="text-muted">Total de Mesas Estimadas</h6><h4 id="prevTotalMesas" class="text-dark">0</h4><small class="text-muted">Fluxo total previsto</small></div></div>
+        </div>
+        <div class="card">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">Auditoria Diária de Projeção vs Real</h5>
+            <button class="btn btn-outline-success btn-sm no-print" onclick="exportPrevisaoToExcel()">Exportar Tabela Excel</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-striped previsao-table" id="tabelaPrevisaoAudit">
+              <thead><tr><th>Data</th><th>Dia</th><th>Mesas Prev.</th><th>Ticket Prev.</th><th>Fat. Previsto</th><th>Desvio Manual (%)</th><th>Fat. Real</th><th>Real Ano Ant. (Sazonal)</th><th>Desvio vs Ano Ant. (%)</th><th>Desvio (%)</th><th>Evento</th></tr></thead>
+              <tbody id="previsaoTable"></tbody>
+              <tfoot id="previsaoTableFoot"></tfoot>
+            </table>
+          </div>
+          <div class="chart-container" style="height: 380px;"><canvas id="previsaoChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- IMPORTAR -->
+      <div id="importar" class="view">
+        <div class="card"><h5 class="card-title">Importar Faturamento (CSV)</h5><p class="small text-muted">Colunas: data, estabelecimento, faturamento, caixa_evento, observacao.</p><input type="file" id="fileFaturamento" accept=".csv" class="form-control mb-2"><button id="btnImportarFat" class="btn btn-primary btn-sm">Processar Faturamento</button><div id="msgImportFat" class="alert-message"></div></div>
+        <div class="card"><h5 class="card-title">Importar Mesas (CSV)</h5><p class="small text-muted">Colunas: data, estabelecimento, mesas_realizadas</p><input type="file" id="fileIndicadoresDiarios" accept=".csv" class="form-control mb-2"><button id="btnImportarIndicadoresDiarios" class="btn btn-primary btn-sm">Processar Mesas</button><div id="msgImportIndicadoresDiarios" class="alert-message"></div></div>
+        <div class="card"><h5 class="card-title">Importar Eventos (CSV)</h5><p class="small text-muted">Colunas: data, data_fim, nome, tipo, cidade, estabelecimento, impacto</p><input type="file" id="fileEventos" accept=".csv" class="form-control mb-2"><button id="btnImportarEventos" class="btn btn-primary btn-sm">Processar Eventos</button><div id="msgImportEventos" class="alert-message"></div></div>
+      </div>
+
+      <!-- CONFIG -->
+      <div id="configuracoes" class="view">
+        <div class="card no-print">
+          <h5 class="card-title">Parâmetros de Novo Negócio (Do Zero)</h5>
+          <form id="formConfigNovoNegocio">
+            <div class="row mb-3">
+              <div class="col-md-4"><label class="form-label">Faturamento Médio Diário Base (R$)</label><input type="text" id="cfgNovoFat" class="form-control" placeholder="10000,00"></div>
+              <div class="col-md-4"><label class="form-label">Mesas Diárias Médias Base</label><input type="number" id="cfgNovoMesas" class="form-control" placeholder="50"></div>
+              <div class="col-md-4"><label class="form-label">Ticket Médio Base (R$)</label><input type="text" id="cfgNovoTkt" class="form-control" placeholder="200,00"></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Salvar Configurações</button>
+          </form>
+        </div>
+        <div class="card no-print">
+          <h5 class="card-title">Parâmetros do Motor Preditivo Avançado</h5>
+          <form id="formConfigMotor">
+            <div class="row mb-3">
+              <div class="col-md-4"><label class="form-label">Taxa de Inflação Mensal (%)</label><div class="input-group"><input type="number" id="cfgInflacaoMensal" class="form-control" placeholder="0.33" step="0.01" value="0.33"><span class="input-group-text">% ao mês</span></div><small class="text-muted">IPCA Brasil aprox. 4% ao ano = 0.33% ao mês.</small></div>
+              <div class="col-md-4"><label class="form-label">Peso dos Dados Recentes (EWMA) (%)</label><div class="input-group"><input type="number" id="cfgPesoRecente" class="form-control" placeholder="70" min="10" max="95" step="5" value="70"><span class="input-group-text">%</span></div><small class="text-muted">Peso dos últimos 30 dias vs. histórico.</small></div>
+              <div class="col-md-4"><label class="form-label">Sensibilidade a Outliers (Desvios Padrão)</label><input type="number" id="cfgOutlierThreshold" class="form-control" placeholder="2.5" step="0.1" min="1.5" max="5" value="2.5"><small class="text-muted">Dias acima de X desvios padrão são suavizados.</small></div>
+            </div>
+            <div class="row mb-3">
+              <div class="col-md-8"><label class="form-label">API Key OpenWeather (Opcional)</label><input type="text" id="cfgWeatherApiKey" class="form-control" placeholder="Insira sua chave gratuita" value=""><small class="text-muted">Se preenchido, aplica ajuste de -15% em dias de chuva.</small></div>
+              <div class="col-md-4"><label class="form-label">Cidade para Clima</label><input type="text" id="cfgWeatherCidade" class="form-control" placeholder="Ex: São Paulo" value=""></div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Salvar Parâmetros do Motor</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- BACKUP -->
+      <div id="backup" class="view">
+        <div class="card no-print"><h5 class="card-title">Gestão de Base de Dados</h5><button class="btn btn-success btn-sm me-2" onclick="exportJSON()">Exportar Backup JSON</button><input type="file" id="fileImportarDados" accept=".json" class="form-control d-inline-block w-auto me-2" onchange="importJSON(event)"><hr><button class="btn btn-danger btn-sm" onclick="resetData()">Resetar Sistema</button></div>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="modalFaturamento"><div class="modal-content p-4" style="width: 100%;"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="modal-title">Faturamento Manual</h5><button type="button" class="btn-close" onclick="$('modalFaturamento').close()"></button></div><form id="formFaturamento" onsubmit="saveFaturamentoManual(event)"><input type="hidden" id="fatId"><div class="mb-3"><label class="form-label">Data</label><input type="date" id="fatData" class="form-control" required></div><div class="mb-3"><label class="form-label">Estabelecimento</label><select id="fatEstab" class="form-select" required></select></div><div class="mb-3"><label class="form-label">Faturamento Bruto (R$) - Use 0 para dias fechados</label><input type="text" id="fatValor" class="form-control" placeholder="0,00" required></div><div class="mb-3"><label class="form-label">Caixa Evento (R$) - Abate do Faturamento</label><input type="text" id="fatCaixaEvento" class="form-control" placeholder="0,00"></div><div class="mb-3"><label class="form-label">Observação</label><input type="text" id="fatObs" class="form-control"></div><div class="text-end"><button type="submit" class="btn btn-primary btn-sm">Salvar Registro</button></div></form></div></dialog>
+  <dialog id="modalIndicador"><div class="modal-content p-4" style="width: 100%;"><div class="d-flex justify-content-between align-items-center mb-3"><h5 class="modal-title">Indicador Diário de Mesas</h5><button type="button" class="btn-close" onclick="$('modalIndicador').close()"></button></div><form id="formIndicador" onsubmit="saveIndicadorManual(event)"><input type="hidden" id="indId"><div class="mb-3"><label class="form-label">Data</label><input type="date" id="indData" class="form-control" required></div><div class="mb-3"><label class="form-label">Estabelecimento</label><select id="indEstab" class="form-select" required></select></div><div class="mb-3"><label class="form-label">Mesas Realizadas</label><input type="number" id="indMesas" class="form-control" min="0" required></div><div class="text-end"><button type="submit" class="btn btn-primary btn-sm">Salvar Indicador</button></div></form></div></dialog>
+
+  <script>
+    var state = { faturamentos: [], estabelecimentos: [], metas: [], eventos: [], indicadoresDiarios: [], caixaEventos: [], config: {}, ajustesPrevisao: {} };
+    var dashboardChartInstance = null, dashboardAcumuladoInstance = null, dashboardDiarioInstance = null, dashboardYoYInstance = null, dashboardDiaSemanaInstance = null, previsaoChartInstance = null, dashboardPizzaInstance = null, dashboardScatterInstance = null;
+    var analiseEventoFatChartInstance = null, analiseEventoTktChartInstance = null;
+    var lastPrevisaoResult = [];
+    var lastFatAnoAnterior = [], lastAnoAtual = 0, lastAnoAnterior = 0, lastEstabId = '';
+    var weatherCache = {};
+
+    function $(id) { return document.getElementById(id); }
+    function generateId() { return '_' + Math.random().toString(36).substr(2, 9); }
+    function formatCurrency(v) { return "R$ " + (Number(v) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function safeDate(s) { if (!s) return new Date(); if (s instanceof Date) return s; let str = String(s).trim(); if (str.includes('/')) { const p = str.split('/'); if (p.length === 3) { let day = p[0].padStart(2, '0'); let month = p[1].padStart(2, '0'); let year = p[2].length === 2 ? '20' + p[2] : p[2]; const d = new Date(year + '-' + month + '-' + day + 'T00:00:00'); return isNaN(d) ? new Date() : d; } } const d = new Date(str + 'T00:00:00'); return isNaN(d) ? new Date() : d; }
+    function parseCurrency(v) { if (!v && v !== 0) return 0; let s = String(v).replace(/[^\d.,-]/g, ""); if (s.includes(',') && s.includes('.')) { if (s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g, '').replace(',', '.'); else s = s.replace(/,/g, ''); } else if (s.includes(',')) s = s.replace(',', '.'); return parseFloat(s) || 0; }
+    function formatDate(s) { if (!s) return ''; const d = safeDate(s); return d.toLocaleDateString('pt-BR'); }
+    function getMonthYear(s) { if (!s) return ''; const d = safeDate(s); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+    function getMonthYearFromISO(s) { if (!s || s.length !== 7) return s; return s.split('-')[1] + '/' + s.split('-')[0]; }
+    function dateFromISO(s) { return safeDate(s); }
+    function isoDate(d) { const dt = safeDate(d); return dt.toISOString().split('T')[0]; }
+    function getDayOfWeek(s) { const d = safeDate(s); return ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][d.getDay()]; }
+    function isWeekend(s) { const d = safeDate(s); return d.getDay() === 0 || d.getDay() === 6; }
+    function escapeHTML(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function getCaixaEvento(data, estabId) { let ce = state.caixaEventos.find(c => c.data === data && c.estabelecimentoId === estabId); return ce ? (parseFloat(ce.valor) || 0) : 0; }
+
+    function saveState() { localStorage.setItem('biPrevisaoState', JSON.stringify(state)); }
+    function loadState() {
+      const s = localStorage.getItem('biPrevisaoState');
+      if (s) {
+        state = JSON.parse(s);
+        ['faturamentos','estabelecimentos','metas','eventos','indicadoresDiarios','caixaEventos'].forEach(k => state[k] = state[k] || []);
+        state.config = state.config || {};
+        state.ajustesPrevisao = state.ajustesPrevisao || {};
+        if (!state.config.motor) state.config.motor = { inflacaoMensal: 0.33, pesoRecente: 70, outlierThreshold: 2.5, weatherApiKey: '', weatherCidade: '' };
+        if (!state.config.metasDiarias) state.config.metasDiarias = [0,0,0,0,0,0,0];
+        
+        let fatMap = new Map(); state.faturamentos.forEach(f => fatMap.set(f.data + '_' + f.estabelecimentoId, f)); state.faturamentos = Array.from(fatMap.values());
+        let indMap = new Map(); state.indicadoresDiarios.forEach(i => indMap.set(i.data + '_' + i.estabelecimentoId, i)); state.indicadoresDiarios = Array.from(indMap.values());
+      }
+    }
+    function addEstabelecimento(n) { const norm = n.trim().toLowerCase(); if (!state.estabelecimentos.some(e => e.nome.toLowerCase() === norm)) { state.estabelecimentos.push({ id: generateId(), nome: n.trim() }); state.estabelecimentos.sort((a, b) => a.nome.localeCompare(b.nome)); } }
+    function getEstabelecimentoName(id) { return state.estabelecimentos.find(e => e.id === id)?.nome || 'Desconhecido'; }
+
+    function fillSelect(id, val) {
+      val = val || ''; const sel = $(id); if (!sel) return; sel.innerHTML = '';
+      const opt = document.createElement('option'); opt.value = ''; opt.textContent = id.includes('Estab') ? 'Todos' : 'Selecione'; sel.appendChild(opt);
+      if (id.includes('Estab')) state.estabelecimentos.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.nome; sel.appendChild(o); });
+      if (id === 'metaMes') { const y = new Date().getFullYear(); for (let i = -1; i <= 2; i++) for (let m = 1; m <= 12; m++) { const o = document.createElement('option'); o.value = y+i + '-' + String(m).padStart(2,'0'); o.textContent = String(m).padStart(2,'0') + '/' + (y+i); sel.appendChild(o); } }
+      if (val) sel.value = val;
+    }
+    function fillSelects() {
+      ['fatEstab','histEstab','metaEstab','eventoEstab','prevEstab','dashboardEstabFilter','indEstab','indEstabFilter'].forEach(id => fillSelect(id));
+      fillSelect('metaMes');
+      const t = new Date(); const cm = t.getFullYear() + '-' + String(t.getMonth() + 1).padStart(2, '0');
+      if ($('metaMes')) $('metaMes').value = cm;
+      if ($('prevInicio')) $('prevInicio').value = isoDate(t);
+      if ($('histDataFim')) $('histDataFim').value = isoDate(t);
+      if ($('histDataInicio')) $('histDataInicio').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 1));
+      if ($('indDataFim')) $('indDataFim').value = isoDate(t);
+      if ($('indDataInicio')) $('indDataInicio').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 1));
+      if (state.config.novoNegocio) { if ($('cfgNovoFat')) $('cfgNovoFat').value = state.config.novoNegocio.fatBase || ''; if ($('cfgNovoMesas')) $('cfgNovoMesas').value = state.config.novoNegocio.mesasBase || ''; if ($('cfgNovoTkt')) $('cfgNovoTkt').value = state.config.novoNegocio.tktBase || ''; }
+      if (state.config.motor) { if ($('cfgInflacaoMensal')) $('cfgInflacaoMensal').value = state.config.motor.inflacaoMensal ?? 0.33; if ($('cfgPesoRecente')) $('cfgPesoRecente').value = state.config.motor.pesoRecente ?? 70; if ($('cfgOutlierThreshold')) $('cfgOutlierThreshold').value = state.config.motor.outlierThreshold ?? 2.5; if ($('cfgWeatherApiKey')) $('cfgWeatherApiKey').value = state.config.motor.weatherApiKey || ''; if ($('cfgWeatherCidade')) $('cfgWeatherCidade').value = state.config.motor.weatherCidade || ''; }
+      if (state.config.metasDiarias) { ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach((d, i) => { if ($('meta' + d)) $('meta' + d).value = state.config.metasDiarias[i] ? formatCurrency(state.config.metasDiarias[i]).replace('R$ ', '') : ''; }); }
+    }
+    function setView(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      $(viewId).classList.add('active');
+      document.querySelector('.nav-btn[data-view="' + viewId + '"]').classList.add('active');
+      $('viewTitle').textContent = document.querySelector('.nav-btn[data-view="' + viewId + '"]').textContent;
+      if (viewId === 'dashboard') renderDashboard();
+      if (viewId === 'historico') renderHistorico();
+      if (viewId === 'indicadores') renderIndicadores();
+      if (viewId === 'metas') renderMetas();
+      if (viewId === 'eventos') renderEventos();
+      if (viewId === 'analise-eventos') { fillAnaliseEventosSelect(); renderAnaliseEvento(); }
+      if (viewId === 'previsao') renderPrevisao();
+    }
+    function calcMesasMeta() { const f = parseCurrency($('metaFaturamento').value), t = parseCurrency($('metaTicketMedio').value); $('metaMesas').value = (f > 0 && t > 0) ? Math.round(f / t) : ''; }
+    function clearMetaForm() { $('formMetas').reset(); $('metaId').value = ''; fillSelect('metaEstab'); }
+    function clearIndFilters() { $('indDataInicio').value=''; $('indDataFim').value=''; $('indEstabFilter').value=''; renderIndicadores(); }
+    function clearDashFilters() { $('dashDataInicio').value = ''; $('dashDataFim').value = ''; $('dashboardEstabFilter').value = ''; renderDashboard(); }
+    function toggleCustomCal() { const sel = $('prevCalibracao').value; $('prevCalibracaoCustom').disabled = (sel !== 'custom'); }
+    
+    // MOTOR PREDITIVO FUNCS
+    function aplicarCorrecaoMonetaria(valor, anoOrigem, anoDestino) { const inflacaoMensal = (state.config.motor?.inflacaoMensal || 0.33) / 100; const mesesDiff = Math.abs((anoDestino - anoOrigem) * 12); if (mesesDiff === 0) return valor; const fatorCorrecao = Math.pow(1 + inflacaoMensal, mesesDiff); return valor * fatorCorrecao; }
+    function removerOutliers(dados) { if (!dados || dados.length < 5) return dados; const valores = dados.map(d => d.fat); const media = valores.reduce((s, v) => s + v, 0) / valores.length; const variancia = valores.reduce((s, v) => s + Math.pow(v - media, 2), 0) / valores.length; const desvioPadrao = Math.sqrt(variancia); const threshold = state.config.motor?.outlierThreshold || 2.5; const limiteSuperior = media + (desvioPadrao * threshold); const limiteInferior = Math.max(0, media - (desvioPadrao * threshold)); return dados.map(d => { if (d.fat > limiteSuperior || d.fat < limiteInferior) return { ...d, fat: media, _wasOutlier: true }; return d; }); }
+    function calcularEWMA(dados, pesoRecentePct) { if (!dados || dados.length === 0) return 0; if (dados.length <= 30) return dados.reduce((s, d) => s + d.fat, 0) / dados.length; const pesoRecente = (pesoRecentePct || 70) / 100; const pesoAntigo = 1 - pesoRecente; const dadosRecentes = dados.slice(-30); const dadosAntigos = dados.slice(0, -30); const mediaRecente = dadosRecentes.reduce((s, d) => s + d.fat, 0) / dadosRecentes.length; const mediaAntiga = dadosAntigos.reduce((s, d) => s + d.fat, 0) / dadosAntigos.length; return (mediaRecente * pesoRecente) + (mediaAntiga * pesoAntigo); }
+    function getImpactoEventoHistorico(evento, estabId, dataPrevista) {
+      const anoAtual = safeDate(dataPrevista).getFullYear(); let impactosEncontrados = [];
+      for (let ano = anoAtual - 1; ano >= anoAtual - 5; ano--) {
+        const eventosAnoAnt = state.eventos.filter(e => e.nome === evento.nome && safeDate(e.data).getFullYear() === ano && (!e.estabelecimentoId || e.estabelecimentoId === estabId));
+        eventosAnoAnt.forEach(evtAnt => {
+          const dataEvt = safeDate(evtAnt.data); const dataFimEvt = evtAnt.dataFim ? safeDate(evtAnt.dataFim) : dataEvt; const diasEvento = []; let curr = new Date(dataEvt);
+          while (curr <= dataFimEvt) { diasEvento.push(isoDate(curr)); curr.setDate(curr.getDate() + 1); }
+          const fatEvento = state.faturamentos.filter(f => f.estabelecimentoId === estabId && diasEvento.includes(f.data) && parseCurrency(f.faturamento) > 0);
+          if (fatEvento.length > 0) {
+            const somaEvento = fatEvento.reduce((s, f) => s + parseCurrency(f.faturamento), 0); const mediaEvento = somaEvento / fatEvento.length;
+            const mes = String(dataEvt.getMonth() + 1).padStart(2, '0'); const fatMes = state.faturamentos.filter(f => f.estabelecimentoId === estabId && f.data.startsWith(ano + '-' + mes) && !diasEvento.includes(f.data) && parseCurrency(f.faturamento) > 0);
+            if (fatMes.length > 0) { const mediaMes = fatMes.reduce((s, f) => s + parseCurrency(f.faturamento), 0) / fatMes.length; impactosEncontrados.push(((mediaEvento - mediaMes) / mediaMes) * 100); }
+          }
+        });
+      }
+      return impactosEncontrados.length > 0 ? impactosEncontrados.reduce((s, v) => s + v, 0) / impactosEncontrados.length : null;
+    }
+    function getSazonalAnoAnterior(isoDateStr, fatAnoAnterior, anoDestino) {
+      const d = safeDate(isoDateStr); const mes = d.getMonth(); const dow = d.getDay(); const semanaMes = Math.floor((d.getDate() - 1) / 7);
+      if (fatAnoAnterior) {
+        let match = fatAnoAnterior.find(f => { const fd = safeDate(f.data); return fd.getMonth() === mes && fd.getDay() === dow && Math.floor((fd.getDate() - 1) / 7) === semanaMes; });
+        if (match) { const anoOrigem = safeDate(match.data).getFullYear(); return aplicarCorrecaoMonetaria(parseCurrency(match.faturamento), anoOrigem, anoDestino); }
+      }
+      return null;
+    }
+
+    function runPredictiveEngine(estabId, startStr, days, calFactor, treatMissingAsClosed) {
+      calFactor = calFactor || 1.0; treatMissingAsClosed = treatMissingAsClosed !== false;
+      if (!estabId || !startStr) return [];
+      const startDate = safeDate(startStr); const anoDestino = startDate.getFullYear();
+      const histFat = state.faturamentos.filter(f => f.estabelecimentoId === estabId).sort((a,b) => a.data.localeCompare(b.data));
+      const histMesas = state.indicadoresDiarios.filter(i => i.estabelecimentoId === estabId).sort((a,b) => a.data.localeCompare(b.data));
+      const eventos = state.eventos.filter(e => !e.estabelecimentoId || e.estabelecimentoId === estabId);
+      let mergedHist = []; histFat.forEach(f => { const m = histMesas.find(x => x.data === f.data); const fat = parseCurrency(f.faturamento); const mesas = m ? (parseInt(m.mesasRealizadas) || 0) : 0; mergedHist.push({ data: f.data, fat, mesas, tkt: mesas > 0 ? fat / mesas : 0 }); });
+      let openDaysHist = mergedHist.filter(d => d.fat > 0); openDaysHist = removerOutliers(openDaysHist);
+      let cfgFat = state.config.novoNegocio?.fatBase || 10000; let cfgMesas = state.config.novoNegocio?.mesasBase || 50; let cfgTkt = state.config.novoNegocio?.tktBase || 200;
+      const pesoRecente = state.config.motor?.pesoRecente || 70;
+      let avgFatGlobal = openDaysHist.length > 0 ? calcularEWMA(openDaysHist, pesoRecente) : cfgFat;
+      let openDaysWithMesas = openDaysHist.filter(d => d.mesas > 0); let avgMesasGlobal = openDaysWithMesas.length > 0 ? calcularEWMA(openDaysWithMesas, pesoRecente) : cfgMesas;
+      let openDaysWithTkt = openDaysHist.filter(d => d.tkt > 0); let avgTktGlobal = openDaysWithTkt.length > 0 ? calcularEWMA(openDaysWithTkt, pesoRecente) : cfgTkt;
+      if (openDaysHist.length > 0 && avgMesasGlobal === 0) avgMesasGlobal = avgFatGlobal / avgTktGlobal;
+      let fatDia = {}, mesasDia = {}, tktDia = {}, countDia = {}; for(let i=0; i<7; i++) { fatDia[i]=0; mesasDia[i]=0; tktDia[i]=0; countDia[i]=0; }
+      openDaysHist.forEach(d => { const dow = safeDate(d.data).getDay(); fatDia[dow] += d.fat; mesasDia[dow] += d.mesas; if (d.tkt > 0) tktDia[dow] += d.tkt; countDia[dow]++; });
+      let seasonalFat = {}, seasonalMesas = {}, seasonalTkt = {};
+      for(let i=0; i<7; i++) {
+        if (countDia[i] > 0) {
+          seasonalFat[i] = avgFatGlobal > 0 ? (fatDia[i] / countDia[i]) / avgFatGlobal : 1;
+          seasonalMesas[i] = avgMesasGlobal > 0 ? (mesasDia[i] / countDia[i]) / avgMesasGlobal : 1;
+          let tktCount = openDaysHist.filter(d => safeDate(d.data).getDay() === i && d.tkt > 0).length;
+          seasonalTkt[i] = tktCount > 0 ? (tktDia[i] / tktCount) / avgTktGlobal : 1;
+        } else {
+          seasonalFat[i] = 1; seasonalMesas[i] = 1; seasonalTkt[i] = 1;
+        }
+      }
+      let previsoes = []; const today = new Date(); today.setHours(0,0,0,0);
+      for (let i = 0; i < days; i++) {
+        const currDate = new Date(startDate); currDate.setDate(startDate.getDate() + i); const isoCurr = isoDate(currDate); const dow = currDate.getDay(); const isPastOrToday = currDate <= today;
+        const realFatRecord = histFat.find(f => f.data === isoCurr); const closedRecord = realFatRecord && parseCurrency(realFatRecord.faturamento) === 0; const evt = eventos.find(e => isoCurr >= e.data && isoCurr <= (e.dataFim || e.data));
+        let evtName = '', isClosed = false, evtImpactoPct = 0, evtImpactoOrigem = '';
+        if (isPastOrToday && !realFatRecord && treatMissingAsClosed) { isClosed = true; evtName = 'Fechado (Sem dados)'; } else if (closedRecord) { isClosed = true; evtName = 'Fechado (Histórico)'; } else if (evt && evt.tipo === 'fechado') { isClosed = true; evtName = evt.nome; }
+        if (isClosed) { previsoes.push({ data: isoCurr, dia: getDayOfWeek(isoCurr), mesas: 0, tkt: 0, previsto: 0, previstoBase: 0, desvioManual: 0, real: realFatRecord ? parseCurrency(realFatRecord.faturamento) : 0, evt: evtName, isClosed: true, evtImpactoPct: 0, evtImpactoOrigem: '' }); continue; }
+        let pMesasBase = Math.max(1, avgMesasGlobal * seasonalMesas[dow]); let pTktBase = Math.max(10, avgTktGlobal * seasonalTkt[dow]);
+        if (evt && evt.tipo !== 'fechado') { 
+          evtName = evt.nome; let histImpact = getImpactoEventoHistorico(evt, estabId, isoCurr);
+          if (histImpact !== null) { evtImpactoPct = histImpact; evtImpactoOrigem = 'Histórico'; } 
+          else if (parseFloat(evt.impactoEsperado)) { evtImpactoPct = parseFloat(evt.impactoEsperado); evtImpactoOrigem = 'Manual'; } 
+          else { pMesasBase *= 1.30; pTktBase *= 1.05; evtImpactoOrigem = 'Padrão'; }
+          if (evtImpactoPct !== 0) { const fatorImpacto = 1 + (evtImpactoPct / 100); pMesasBase *= fatorImpacto; pTktBase *= (1 + (evtImpactoPct / 200)); }
+        }
+        pMesasBase = Math.round(pMesasBase * calFactor); pTktBase *= calFactor; let pFatBase = pMesasBase * pTktBase;
+        let ajusteKey = estabId + '_' + isoCurr; let desvioManual = (state.ajustesPrevisao && state.ajustesPrevisao[ajusteKey] !== undefined) ? state.ajustesPrevisao[ajusteKey] : 0;
+        let pFat = pFatBase * (1 + desvioManual / 100); let pMesas = pTktBase > 0 ? Math.round(pFat / pTktBase) : pMesasBase; let pTkt = pTktBase;
+        const valReal = realFatRecord ? parseCurrency(realFatRecord.faturamento) : null;
+        let evtDisplay = evtName; if (evtImpactoPct !== 0 && evtName) { evtDisplay = evtName + ' (' + (evtImpactoPct > 0 ? '+' : '') + evtImpactoPct.toFixed(0) + '% / ' + evtImpactoOrigem + ')'; }
+        previsoes.push({ data: isoCurr, dia: getDayOfWeek(isoCurr), mesas: pMesas, tkt: pTkt, previsto: pFat, previstoBase: pFatBase, desvioManual, real: valReal, evt: evtDisplay, evtImpactoPct, evtImpactoOrigem, isClosed: false });
+      }
+      return previsoes;
+    }
+
+    function salvarMetasDiarias() {
+      state.config.metasDiarias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d => parseCurrency($('meta' + d).value));
+      saveState();
+      renderDashboard();
+      alert("Metas diárias salvas com sucesso!");
+    }
+
+    function calcularMetasDiariasProj() {
+      const estabId = $('metaEstab').value || state.estabelecimentos[0]?.id;
+      if(!estabId) return alert("Cadastre/selecione um estabelecimento na meta mensal primeiro.");
+      const mes = $('metaMes').value;
+      if(!mes) return alert("Selecione o mês de referência na meta mensal.");
+      
+      let metaMensal = parseCurrency($('metaFaturamento').value);
+      
+      if(metaMensal <= 0) {
+        const metaExistente = state.metas.find(m => m.mes === mes && m.estabelecimentoId === estabId);
+        if(metaExistente) {
+          metaMensal = parseCurrency(metaExistente.faturamentoAlvo);
+          $('metaId').value = metaExistente.id;
+          $('metaFaturamento').value = metaExistente.faturamentoAlvo;
+          $('metaTicketMedio').value = metaExistente.ticketMedioAlvo;
+          calcMesasMeta();
+        }
+      }
+      
+      if(metaMensal <= 0) return alert("Preencha o Faturamento Alvo Mensal no formulário acima para distribuir.");
+      
+      const startDate = mes + "-01";
+      const [ano, mesNum] = mes.split('-').map(Number);
+      const daysInMonth = new Date(ano, mesNum, 0).getDate();
+      const previsoes = runPredictiveEngine(estabId, startDate, daysInMonth, 1.0, false);
+      
+      let somaProjPorDia = [0,0,0,0,0,0,0];
+      let totalProj = 0;
+      previsoes.forEach(p => {
+        if(!p.isClosed) {
+          let dow = safeDate(p.data).getDay();
+          somaProjPorDia[dow] += p.previsto;
+          totalProj += p.previsto;
+        }
+      });
+      
+      if(totalProj === 0) return alert("Sem histórico suficiente para calcular a projeção sazonal.");
+      
+      const dias = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      state.config.metasDiarias = [0,0,0,0,0,0,0];
+      for(let i=0; i<7; i++) {
+        const peso = somaProjPorDia[i] / totalProj;
+        const metaDia = metaMensal * peso;
+        state.config.metasDiarias[i] = metaDia;
+        if($('meta' + dias[i])) {
+          $('meta' + dias[i]).value = metaDia.toFixed(2).replace('.', ',');
+        }
+      }
+      saveState();
+      renderDashboard();
+      alert("Metas diárias calculadas e salvas com sucesso! Sábados agora têm projeção. O Dashboard Executivo foi atualizado.");
+    }
+
+    // ANALISE COMPARATIVA DE EVENTOS
+    function fillAnaliseEventosSelect() {
+      let sel = $('analiseEventoSelect');
+      if(!sel) return;
+      let uniqueNames = [...new Set(state.eventos.map(e => e.nome))].sort();
+      sel.innerHTML = '<option value="">Selecione um evento</option>';
+      uniqueNames.forEach(nome => {
+        let opt = document.createElement('option');
+        opt.value = nome;
+        opt.textContent = nome;
+        sel.appendChild(opt);
+      });
+      let estabSel = $('analiseEstabFilter');
+      if(estabSel) {
+        let currentVal = estabSel.value;
+        estabSel.innerHTML = '<option value="">Todos os Estabelecimentos</option>';
+        state.estabelecimentos.forEach(e => {
+          let opt = document.createElement('option');
+          opt.value = e.id;
+          opt.textContent = e.nome;
+          estabSel.appendChild(opt);
+        });
+        if(currentVal) estabSel.value = currentVal;
+      }
+    }
+
+    function renderAnaliseEvento() {
+      const nomeEvento = $('analiseEventoSelect').value;
+      const estabFilter = $('analiseEstabFilter')?.value || '';
+      const estabFilterName = estabFilter ? getEstabelecimentoName(estabFilter) : 'Todos';
+      const tb = $('analiseEventoTableBody');
+      const kpis = $('analiseEventosKPIs');
+      
+      if(!nomeEvento) {
+        tb.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Selecione um evento para análise.</td></tr>';
+        kpis.innerHTML = '<div class="col-12 text-center text-muted">Selecione um evento para ver os indicadores.</div>';
+        if(analiseEventoFatChartInstance) analiseEventoFatChartInstance.destroy();
+        if(analiseEventoTktChartInstance) analiseEventoTktChartInstance.destroy();
+        return;
+      }
+      
+      const eventosDoNome = state.eventos.filter(e => e.nome === nomeEvento).sort((a,b) => a.data.localeCompare(b.data));
+      let dadosAno = [];
+      
+      eventosDoNome.forEach(evt => {
+        const dataEvt = safeDate(evt.data);
+        const dataFimEvt = evt.dataFim ? safeDate(evt.dataFim) : dataEvt;
+        const ano = dataEvt.getFullYear();
+        const diasEvento = [];
+        let curr = new Date(dataEvt);
+        while (curr <= dataFimEvt) {
+          diasEvento.push(isoDate(curr));
+          curr.setDate(curr.getDate() + 1);
+        }
+        
+        let fatTotal = 0, mesasTotal = 0;
+        
+        diasEvento.forEach(d => {
+          let f = state.faturamentos.find(x => x.data === d && (!estabFilter || x.estabelecimentoId === estabFilter) && parseCurrency(x.faturamento) > 0);
+          if(f) fatTotal += parseCurrency(f.faturamento);
+          let m = state.indicadoresDiarios.find(x => x.data === d && (!estabFilter || x.estabelecimentoId === estabFilter));
+          if(m) mesasTotal += parseInt(m.mesasRealizadas) || 0;
+        });
+        
+        let tktMedio = mesasTotal > 0 ? fatTotal / mesasTotal : 0;
+        dadosAno.push({ ano, dataInicio: evt.data, dataFim: evt.dataFim || evt.data, fatTotal, mesasTotal, tktMedio, estabNome: estabFilterName });
+      });
+      
+      let html = ''; let fatAnt = 0;
+      dadosAno.forEach(d => {
+        let variacao = fatAnt > 0 ? ((d.fatTotal - fatAnt) / fatAnt) * 100 : 0;
+        let variacaoStr = fatAnt > 0 ? (variacao >= 0 ? `<span class="diff-positive">+${variacao.toFixed(1)}%</span>` : `<span class="diff-negative">${variacao.toFixed(1)}%</span>`) : '-';
+        html += `<tr><td>${d.ano}</td><td>${formatDate(d.dataInicio)}</td><td>${formatDate(d.dataFim)}</td><td>${formatCurrency(d.fatTotal)}</td><td>${d.mesasTotal}</td><td>${formatCurrency(d.tktMedio)}</td><td>${variacaoStr}</td></tr>`;
+        fatAnt = d.fatTotal;
+      });
+      if(dadosAno.length === 0) html = '<tr><td colspan="7" class="text-center">Sem dados para este evento.</td></tr>';
+      tb.innerHTML = html;
+      
+      let ultAno = dadosAno.length > 0 ? dadosAno[dadosAno.length-1] : null;
+      if(ultAno) {
+        kpis.innerHTML = `
+          <div class="col-md-4"><div class="card text-center kpi-card"><h5 class="card-title" style="font-size:0.9em;">Faturamento (${ultAno.ano})</h5><p class="h3 text-dark">${formatCurrency(ultAno.fatTotal)}</p><small class="text-muted">${escapeHTML(estabFilterName)} - Última ocorrência</small></div></div>
+          <div class="col-md-4"><div class="card text-center kpi-card" style="border-left-color: var(--accent);"><h5 class="card-title" style="font-size:0.9em;">Mesas (${ultAno.ano})</h5><p class="h3 text-dark">${ultAno.mesasTotal}</p><small class="text-muted">${escapeHTML(estabFilterName)} - Total no período</small></div></div>
+          <div class="col-md-4"><div class="card text-center kpi-card" style="border-left-color: #9b59b6;"><h5 class="card-title" style="font-size:0.9em;">Ticket Médio (${ultAno.ano})</h5><p class="h3 text-primary">${formatCurrency(ultAno.tktMedio)}</p><small class="text-muted">${escapeHTML(estabFilterName)} - Média no período</small></div></div>
+        `;
+      } else {
+        kpis.innerHTML = '<div class="col-12 text-center text-muted">Sem dados históricos para os anos deste evento.</div>';
+      }
+      
+      if(analiseEventoFatChartInstance) analiseEventoFatChartInstance.destroy();
+      analiseEventoFatChartInstance = new Chart($('analiseEventoFatChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: dadosAno.map(d => d.ano),
+          datasets: [{ label: 'Faturamento - ' + estabFilterName, data: dadosAno.map(d => d.fatTotal), backgroundColor: '#16a085' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } }
+      });
+      
+      if(analiseEventoTktChartInstance) analiseEventoTktChartInstance.destroy();
+      analiseEventoTktChartInstance = new Chart($('analiseEventoTktChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: dadosAno.map(d => d.ano),
+          datasets: [
+            { label: 'Mesas - ' + estabFilterName, data: dadosAno.map(d => d.mesasTotal), borderColor: '#3498db', yAxisID: 'y', tension: 0.1 },
+            { label: 'Ticket Médio - ' + estabFilterName, data: dadosAno.map(d => d.tktMedio), borderColor: '#e74c3c', yAxisID: 'y1', tension: 0.1 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Mesas' } },
+            y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: 'Ticket Médio' }, grid: { drawOnChartArea: false }, ticks: { callback: v => formatCurrency(v) } }
+          }
+        }
+      });
+    }
+
+    function renderPrevisao() {
+      const estabId = $('prevEstab').value, startStr = $('prevInicio').value, days = parseInt($('prevDias').value) || 30;
+      if (!estabId || !startStr) { $('previsaoTable').innerHTML = '<tr><td colspan="11">Selecione estabelecimento e data inicial.</td></tr>'; return; }
+      const cal = $('prevCalibracao').value; let calFactor = 1.0;
+      if (cal === 'otimista') calFactor = 1.15; else if (cal === 'conservador') calFactor = 0.85; else if (cal === 'custom') { const customVal = parseFloat($('prevCalibracaoCustom').value) || 0; calFactor = 1.0 + (customVal / 100); }
+      const previsoes = runPredictiveEngine(estabId, startStr, days, calFactor, true); lastPrevisaoResult = previsoes;
+      lastAnoAtual = safeDate(startStr).getFullYear(); lastAnoAnterior = lastAnoAtual - 1;
+      lastFatAnoAnterior = state.faturamentos.filter(f => f.estabelecimentoId === estabId && f.data.startsWith(lastAnoAnterior + '-')); lastEstabId = estabId;
+      atualizarTabelaPrevisao(lastFatAnoAnterior, lastAnoAtual, lastAnoAnterior, estabId);
+    }
+    function salvarAjustesPrevisao() { saveState(); alert("Ajustes salvos com sucesso!"); renderDashboard(); }
+    function atualizarTabelaPrevisao(fatAnoAnterior, anoAtual, anoAnterior, estabId) {
+      const filtrarEventos = $('prevFiltrarEventos')?.checked;
+      let dadosParaTabela = lastPrevisaoResult;
+      if (filtrarEventos) { dadosParaTabela = lastPrevisaoResult.filter(p => p.evt && p.evt.trim() !== '' && !p.isClosed); }
+      let somaPrev = 0, somaReal = 0, somaMesasPrev = 0, mapeSum = 0, mapeCount = 0; let somaRealAnoAnt = 0, countRealAnoAnt = 0;
+      dadosParaTabela.forEach(p => { somaPrev += Number(p.previsto) || 0; somaMesasPrev += Number(p.mesas) || 0; if (p.real !== null && p.real !== undefined) { somaReal += Number(p.real); if (p.previsto > 0 && p.real > 0) { mapeSum += Math.abs(p.real - p.previsto) / p.real; mapeCount++; } } });
+      $('prevMapeScore').textContent = mapeCount > 0 ? ((mapeSum / mapeCount) * 100).toFixed(1) + '%' : 'N/A';
+      $('prevTotalSoma').textContent = formatCurrency(somaPrev);
+      $('prevMediaDiaria').textContent = formatCurrency(somaPrev / (dadosParaTabela.length || 1));
+      $('prevTotalMesas').textContent = somaMesasPrev.toLocaleString('pt-BR');
+      let tb = $('previsaoTable'); tb.innerHTML = '';
+      if (dadosParaTabela.length === 0 && filtrarEventos) { tb.innerHTML = '<tr><td colspan="11" class="text-center text-muted">Nenhum evento encontrado no horizonte selecionado.</td></tr>'; $('previsaoTableFoot').innerHTML = ''; atualizarGraficoPrevisao(dadosParaTabela); return; }
+      dadosParaTabela.forEach((p) => {
+        let originalIdx = lastPrevisaoResult.findIndex(x => x.data === p.data); let row = tb.insertRow();
+        if (p.isClosed) row.className = 'row-closed'; else if (isWeekend(p.data)) row.className = 'row-weekend';
+        row.insertCell().textContent = formatDate(p.data); row.insertCell().textContent = p.dia; row.insertCell().textContent = p.mesas; row.insertCell().textContent = formatCurrency(p.tkt);
+        let prevCell = row.insertCell(); prevCell.textContent = formatCurrency(p.previsto); prevCell.style.fontWeight = 'bold';
+        let desvioCell = row.insertCell();
+        if (!p.isClosed && p.previstoBase > 0) {
+          let desvioSpan = document.createElement('span'); desvioSpan.className = 'editable-prev'; desvioSpan.contentEditable = 'true'; desvioSpan.textContent = (p.desvioManual || 0).toFixed(1); desvioSpan.dataset.idx = originalIdx;
+          desvioSpan.addEventListener('blur', function() { let desvioVal = parseFloat(this.textContent.replace(/[^\d,.-]/g, '').replace(',', '.')); if (isNaN(desvioVal)) desvioVal = 0; let i = parseInt(this.dataset.idx); lastPrevisaoResult[i].desvioManual = desvioVal; lastPrevisaoResult[i].previsto = lastPrevisaoResult[i].previstoBase * (1 + desvioVal / 100); if (lastPrevisaoResult[i].tkt > 0) { lastPrevisaoResult[i].mesas = Math.round(lastPrevisaoResult[i].previsto / lastPrevisaoResult[i].tkt); } let ajusteKey = estabId + '_' + lastPrevisaoResult[i].data; if (!state.ajustesPrevisao) state.ajustesPrevisao = {}; state.ajustesPrevisao[ajusteKey] = desvioVal; saveState(); atualizarTabelaPrevisao(fatAnoAnterior, anoAtual, anoAnterior, estabId); });
+          desvioSpan.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); this.blur(); } }); desvioCell.appendChild(desvioSpan);
+        } else { desvioCell.textContent = '-'; }
+        row.insertCell().textContent = p.real !== null && p.real !== undefined ? formatCurrency(p.real) : '-';
+        let realAnoAntVal = getSazonalAnoAnterior(p.data, fatAnoAnterior, anoAtual); row.insertCell().textContent = realAnoAntVal !== null ? formatCurrency(realAnoAntVal) : '-'; if (realAnoAntVal !== null) { somaRealAnoAnt += realAnoAntVal; countRealAnoAnt++; }
+        let desvioAnoAnt = (realAnoAntVal !== null && realAnoAntVal > 0 && p.previsto > 0) ? ((p.previsto - realAnoAntVal) / realAnoAntVal) * 100 : null; let dcAnoAnt = row.insertCell();
+        if (desvioAnoAnt !== null) { dcAnoAnt.textContent = desvioAnoAnt.toFixed(1) + '%'; dcAnoAnt.className = desvioAnoAnt >= 0 ? 'diff-positive' : 'diff-negative'; } else { dcAnoAnt.textContent = '-'; }
+        let diffPerc = p.real !== null && p.real !== undefined && p.previsto > 0 ? ((p.real - p.previsto) / p.previsto) * 100 : null; let dc = row.insertCell();
+        if (diffPerc !== null && diffPerc !== 0) { dc.textContent = diffPerc.toFixed(1) + '%'; dc.className = Math.abs(diffPerc) <= 5 ? 'diff-neutral' : (diffPerc > 0 ? 'diff-positive' : 'diff-negative'); } else { dc.textContent = '-'; }
+        let evtCell = row.insertCell(); evtCell.textContent = escapeHTML(p.evt); if (p.evtImpactoPct && p.evtImpactoPct !== 0) { evtCell.style.fontSize = '0.8em'; }
+      });
+      let diffTotalPerc = somaPrev > 0 && somaReal > 0 ? ((somaReal - somaPrev) / somaPrev) * 100 : 0; let desvioAnoAntTotal = somaRealAnoAnt > 0 && somaPrev > 0 ? ((somaPrev - somaRealAnoAnt) / somaRealAnoAnt) * 100 : 0; let tf = $('previsaoTableFoot');
+      // CORREÇÃO 1: Adicionado o total da previsão no rodapé
+      tf.innerHTML = '<tr><th colspan="4" class="text-end">TOTAIS:</th><th>' + formatCurrency(somaPrev) + '</th><th>-</th><th>' + (somaReal > 0 ? formatCurrency(somaReal) : '-') + '</th><th>' + (somaRealAnoAnt > 0 ? formatCurrency(somaRealAnoAnt) : '-') + '</th><th class="' + (desvioAnoAntTotal >= 0 ? 'diff-positive' : 'diff-negative') + '">' + (countRealAnoAnt > 0 ? desvioAnoAntTotal.toFixed(1) + '%' : '-') + '</th><th class="' + (diffTotalPerc >= 0 ? 'diff-positive' : 'diff-negative') + '">' + (somaReal > 0 ? diffTotalPerc.toFixed(1) + '%' : '-') + '</th><th>Consolidado</th></tr>';
+      atualizarGraficoPrevisao(dadosParaTabela);
+    }
+    function atualizarGraficoPrevisao(dados) {
+      if (previsaoChartInstance) previsaoChartInstance.destroy();
+      previsaoChartInstance = new Chart($('previsaoChart').getContext('2d'), { type: 'line', data: { labels: dados.map(p => formatDate(p.data)), datasets: [{ label: 'Previsto', data: dados.map(p => p.previsto), borderColor: '#1abc9c', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.3 }, { label: 'Real', data: dados.map(p => p.real), borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } } });
+    }
+
+    function renderDashboard() {
+      try {
+        const eId = $('dashboardEstabFilter').value; const dI = $('dashDataInicio').value || isoDate(new Date(new Date().getFullYear(), new Date().getMonth(), 1)); const dF = $('dashDataFim').value || isoDate(new Date());
+        const fatPeriod = state.faturamentos.filter(f => (!eId || f.estabelecimentoId === eId) && f.data >= dI && f.data <= dF);
+        const startMonth = getMonthYear(dI); const endMonth = getMonthYear(dF);
+        const metasPeriod = state.metas.filter(m => m.mes >= startMonth && m.mes <= endMonth && (!eId || m.estabelecimentoId === eId));
+        const totFat = fatPeriod.reduce((s, f) => s + parseCurrency(f.faturamento), 0);
+        const totCaixaEvento = fatPeriod.reduce((s, f) => s + getCaixaEvento(f.data, f.estabelecimentoId), 0);
+        const totFatLiquido = totFat - totCaixaEvento;
+        const totMeta = metasPeriod.reduce((s, m) => s + parseCurrency(m.faturamentoAlvo), 0);
+        const diasUteisApurados = new Set(fatPeriod.filter(f => parseCurrency(f.faturamento) > 0).map(f => f.data)).size;
+        const today = new Date(); today.setHours(0,0,0,0); const endOfMonth = new Date(safeDate(dF).getFullYear(), safeDate(dF).getMonth() + 1, 0);
+        let daysToProject = Math.max(0, Math.round((endOfMonth - today) / (1000 * 60 * 60 * 24)) + 1);
+        let projPeriod = totFatLiquido;
+        if (today <= endOfMonth && daysToProject > 0) {
+          if (eId) { let engineResult = runPredictiveEngine(eId, isoDate(today), daysToProject); projPeriod = totFatLiquido + engineResult.reduce((s, r) => s + r.previsto, 0); } 
+          else if (state.estabelecimentos.length > 0) { let sumAll = 0; state.estabelecimentos.forEach(est => { let res = runPredictiveEngine(est.id, isoDate(today), daysToProject); sumAll += res.reduce((s, r) => s + r.previsto, 0); }); projPeriod = totFatLiquido + sumAll; }
+        }
+        
+        // CORREÇÃO 2: Dashboard exibindo Bruto, Caixa Evento e Líquido
+        $('dashboardFatTotal').textContent = formatCurrency(totFat);
+        $('dashboardDiasUteis').innerHTML = `${diasUteisApurados} dias apurados<br>Caixa Evento: -${formatCurrency(totCaixaEvento)}<br><strong>Líquido: ${formatCurrency(totFatLiquido)}</strong>`;
+        
+        $('dashboardMetaTotal').textContent = formatCurrency(totMeta); $('dashboardAtingimentoMeta').textContent = 'Atingimento: ' + (totMeta > 0 ? ((totFatLiquido / totMeta) * 100).toFixed(1) + '%' : '0%');
+        $('dashboardProjMes').textContent = formatCurrency(projPeriod);
+        $('dashboardRunRateStatus').textContent = totMeta > 0 ? (projPeriod >= totMeta ? 'Ritmo Preditivo Forte 🟢' : 'Abaixo do Alvo 🔴') : 'Motor Preditivo Ativo ⚪';
+        
+        const projMesCard = $('dashboardProjMesCard');
+        if (totMeta > 0 && (projPeriod / totMeta) < 0.90) { projMesCard.classList.add('alert-pulse'); } else { projMesCard.classList.remove('alert-pulse'); }
+
+        const diff = projPeriod - totMeta; $('dashboardDiferenca').textContent = formatCurrency(diff); $('dashboardDiferenca').style.color = diff >= 0 ? 'var(--success)' : 'var(--danger)';
+        let tb = $('dashboardMatrizTable'); tb.innerHTML = ''; let hasData = false, fatPorEstab = {};
+        state.estabelecimentos.forEach(e => { if (!eId || e.id === eId) fatPorEstab[e.id] = { nome: e.nome, faturamento: 0, meta: 0 }; });
+        fatPeriod.forEach(f => { if (fatPorEstab[f.estabelecimentoId]) fatPorEstab[f.estabelecimentoId].faturamento += (parseCurrency(f.faturamento) - getCaixaEvento(f.data, f.estabelecimentoId)); });
+        metasPeriod.forEach(m => { if (fatPorEstab[m.estabelecimentoId]) fatPorEstab[m.estabelecimentoId].meta += parseCurrency(m.faturamentoAlvo); });
+        for (let id in fatPorEstab) {
+          hasData = true; let d = fatPorEstab[id]; let ating = d.meta > 0 ? (d.faturamento / d.meta) * 100 : 0;
+          let estabMesas = state.indicadoresDiarios.filter(i => i.estabelecimentoId === id && i.data >= dI && i.data <= dF); let totM = estabMesas.reduce((s,i) => s + i.mesasRealizadas, 0); let tktMed = totM > 0 ? d.faturamento / totM : 0;
+          let r = tb.insertRow(); r.insertCell().textContent = d.nome; r.insertCell().textContent = formatCurrency(d.faturamento); r.insertCell().textContent = formatCurrency(d.meta); r.insertCell().textContent = ating.toFixed(1) + '%'; r.insertCell().textContent = formatCurrency(tktMed);
+          r.insertCell().innerHTML = ating >= 100 ? '<span class="badge bg-success">Excelente</span>' : (ating >= 80 ? '<span class="badge bg-warning text-dark">Atenção</span>' : '<span class="badge bg-danger">Crítico</span>');
+        }
+        if (!hasData) tb.innerHTML = '<tr><td colspan="6">Nenhum dado financeiro para o período.</td></tr>';
+        if (dashboardChartInstance) dashboardChartInstance.destroy();
+        dashboardChartInstance = new Chart($('dashboardChart').getContext('2d'), { type: 'bar', data: { labels: Object.values(fatPorEstab).map(d => d.nome), datasets: [{ label: 'Real Líquido', data: Object.values(fatPorEstab).map(d => d.faturamento), backgroundColor: '#16a085' }, { label: 'Meta', data: Object.values(fatPorEstab).map(d => d.meta), backgroundColor: '#2980b9' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } } });
+        if (dashboardAcumuladoInstance) dashboardAcumuladoInstance.destroy();
+        let periodDays = [], acumFat = 0, dadosAcumulados = []; let currDate = safeDate(dI), endDate = safeDate(dF);
+        while(currDate <= endDate) { let dataStr = isoDate(currDate); periodDays.push(formatDate(dataStr)); let reg = fatPeriod.find(f => f.data === dataStr); if (reg) acumFat += (parseCurrency(reg.faturamento) - getCaixaEvento(reg.data, reg.estabelecimentoId)); dadosAcumulados.push(acumFat); currDate.setDate(currDate.getDate() + 1); }
+        dashboardAcumuladoInstance = new Chart($('dashboardAcumuladoChart').getContext('2d'), { type: 'line', data: { labels: periodDays, datasets: [{ label: 'Faturamento Acumulado Líquido (R$)', data: dadosAcumulados, borderColor: '#9b59b6', backgroundColor: 'rgba(155, 89, 182, 0.1)', fill: true, tension: 0.2 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } } });
+        if (dashboardDiarioInstance) dashboardDiarioInstance.destroy();
+        let monthToPlot = safeDate(dF); let totalDaysInMonthToPlot = new Date(monthToPlot.getFullYear(), monthToPlot.getMonth() + 1, 0).getDate(); let chartLabels = [], realDiaria = [], projDiaria = [];
+        const chartMonthYear = getMonthYear(dF); let sampleEngine = eId ? runPredictiveEngine(eId, chartMonthYear + '-01', totalDaysInMonthToPlot, 1.0, true) : [];
+        for (let d = 1; d <= totalDaysInMonthToPlot; d++) { let dataStr = chartMonthYear + '-' + String(d).padStart(2,'0'); chartLabels.push(d); let reg = state.faturamentos.find(f => f.data === dataStr && (!eId || f.estabelecimentoId === eId)); let val = reg ? (parseCurrency(reg.faturamento) - getCaixaEvento(reg.data, reg.estabelecimentoId)) : 0; let engMatch = sampleEngine.find(s => s.data === dataStr); realDiaria.push(d <= safeDate(dF).getDate() ? val : null); projDiaria.push(engMatch ? engMatch.previsto : 0); }
+        dashboardDiarioInstance = new Chart($('dashboardDiarioChart').getContext('2d'), { type: 'bar', data: { labels: chartLabels, datasets: [{ type: 'line', label: 'Projeção Preditiva Diária', data: projDiaria, borderColor: '#e74c3c', borderWidth: 2, fill: false, tension: 0.1, pointRadius: 0 }, { type: 'bar', label: 'Faturamento Real Líquido', data: realDiaria, backgroundColor: 'rgba(52, 152, 219, 0.7)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } } });
+        if (dashboardYoYInstance) dashboardYoYInstance.destroy();
+        let anosUnicos = [...new Set(state.faturamentos.map(f => f.data.split('-')[0]))].sort(); let anoAtual = safeDate(dI).getFullYear(); if (!anosUnicos.includes(String(anoAtual))) anosUnicos.push(String(anoAtual)); let anos = anosUnicos.slice(-4); 
+        let passedDays = safeDate(dF).getDate(); let yoyDays = Array.from({length: passedDays}, (_, i) => i + 1); let datasetsYoY = anos.map(ano => { let fatAno = state.faturamentos.filter(f => f.data.startsWith(ano + '-') && f.data.split('-')[1] === startMonth.split('-')[1] && (!eId || f.estabelecimentoId === eId)); let acum = 0; let dadosAno = yoyDays.map(d => { let dataStr = ano + '-' + startMonth.split('-')[1] + '-' + String(d).padStart(2,'0'); let reg = fatAno.find(f => f.data === dataStr); if (reg) { let val = parseCurrency(reg.faturamento) - getCaixaEvento(reg.data, reg.estabelecimentoId); if (parseInt(ano) < anoAtual) { val = aplicarCorrecaoMonetaria(val, parseInt(ano), anoAtual); } acum += val; } return acum; }); return { label: 'Acumulado ' + ano, data: dadosAno, borderColor: ano == anoAtual ? '#2ecc71' : '#95a5a6', backgroundColor: ano == anoAtual ? 'rgba(46, 204, 113, 0.1)' : 'transparent', borderWidth: ano == anoAtual ? 3 : 2, fill: ano == anoAtual, tension: 0.1 }; });
+        dashboardYoYInstance = new Chart($('dashboardYoYChart').getContext('2d'), { type: 'line', data: { labels: yoyDays, datasets: datasetsYoY }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } } });
+        let tbEvt = $('dashboardEventosTable'); tbEvt.innerHTML = ''; let evtsPeriod = state.eventos.filter(ev => { let evMonth = getMonthYear(ev.data); return evMonth === startMonth; });
+        if (evtsPeriod.length === 0) { tbEvt.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum evento histórico neste período.</td></tr>'; } 
+        else { evtsPeriod.sort((a,b) => b.data.localeCompare(a.data)).forEach(ev => { let r = tbEvt.insertRow(); if (ev.tipo === 'fechado') r.className = 'row-closed'; r.insertCell().textContent = formatDate(ev.data); r.insertCell().textContent = safeDate(ev.data).getFullYear(); r.insertCell().textContent = escapeHTML(ev.nome); r.insertCell().textContent = ev.tipo; r.insertCell().textContent = ev.estabelecimentoId ? getEstabelecimentoName(ev.estabelecimentoId) : 'Todos'; }); }
+        renderGraficoTabelaDiaSemana(eId, dI, dF);
+        renderGraficosExtrasDashboard(eId, dI, dF);
+      } catch (err) { console.error("Erro crítico no RenderDashboard:", err); }
+    }
+    function renderGraficoTabelaDiaSemana(eId, dI, dF) {
+      const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      let somaRealPorDia = [0,0,0,0,0,0,0], countRealPorDia = [0,0,0,0,0,0,0], somaProjPorDia = [0,0,0,0,0,0,0], desvioPorDia = [0,0,0,0,0,0,0];
+      state.faturamentos.forEach(f => { if ((!eId || f.estabelecimentoId === eId) && f.data >= dI && f.data <= dF) { let val = parseCurrency(f.faturamento) - getCaixaEvento(f.data, f.estabelecimentoId); let dow = safeDate(f.data).getDay(); somaRealPorDia[dow] += val; countRealPorDia[dow]++; } });
+      let currDate = safeDate(dI), endDate = safeDate(dF); let diasDestePeridoDow = [0,0,0,0,0,0,0]; let tempDate = new Date(currDate);
+      while(tempDate <= endDate) { diasDestePeridoDow[tempDate.getDay()]++; tempDate.setDate(tempDate.getDate() + 1); }
+      const chartMonthYear = getMonthYear(dF); const totalDaysInMonth = new Date(safeDate(dF).getFullYear(), safeDate(dF).getMonth() + 1, 0).getDate();
+      let sampleEngine = eId ? runPredictiveEngine(eId, chartMonthYear + '-01', totalDaysInMonth, 1.0, true) : [];
+      sampleEngine.forEach(p => { if (p.data >= dI && p.data <= dF) { let dow = safeDate(p.data).getDay(); somaProjPorDia[dow] += p.previsto; } });
+      for(let i=0; i<7; i++) { desvioPorDia[i] = somaProjPorDia[i] > 0 ? ((somaRealPorDia[i] - somaProjPorDia[i]) / somaProjPorDia[i]) * 100 : 0; }
+      let mediaRealPorDia = somaRealPorDia.map((s, i) => countRealPorDia[i] > 0 ? s / countRealPorDia[i] : 0);
+      let mediaProjPorDia = somaProjPorDia.map((s, i) => diasDestePeridoDow[i] > 0 ? s / diasDestePeridoDow[i] : 0);
+      let metasDiarias = state.config.metasDiarias || [0,0,0,0,0,0,0];
+      let tbody = $('tabelaDiaSemanaBody'); tbody.innerHTML = '';
+      diasSemana.forEach((dia, i) => {
+        let r = tbody.insertRow(); r.insertCell().textContent = dia; r.insertCell().textContent = formatCurrency(mediaRealPorDia[i]); r.insertCell().textContent = formatCurrency(somaRealPorDia[i]); r.insertCell().textContent = formatCurrency(somaProjPorDia[i]);
+        let metaCell = r.insertCell(); metaCell.textContent = metasDiarias[i] ? formatCurrency(metasDiarias[i]) : '-'; 
+        let dCell = r.insertCell(); dCell.textContent = desvioPorDia[i].toFixed(1) + '%'; dCell.className = desvioPorDia[i] >= 0 ? 'diff-positive' : 'diff-negative';
+      });
+      if (dashboardDiaSemanaInstance) dashboardDiaSemanaInstance.destroy();
+      dashboardDiaSemanaInstance = new Chart($('dashboardDiaSemanaChart').getContext('2d'), { type: 'bar', data: { labels: diasSemana, datasets: [{ label: 'Média Realizado Líquido', data: mediaRealPorDia, backgroundColor: '#fd7e14', yAxisID: 'y' }, { label: 'Média Previsto', data: mediaProjPorDia, backgroundColor: '#6c757d', yAxisID: 'y' }, { type: 'line', label: 'Desvio (%)', data: desvioPorDia, borderColor: '#e74c3c', borderWidth: 2, fill: false, tension: 0.1, yAxisID: 'y1' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, position: 'left', ticks: { callback: v => formatCurrency(v) } }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => v.toFixed(0) + '%' } } } } });
+    }
+    function renderGraficosExtrasDashboard(eId, dI, dF) {
+      const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      let somaRealPorDia = [0,0,0,0,0,0,0];
+      state.faturamentos.forEach(f => { if ((!eId || f.estabelecimentoId === eId) && f.data >= dI && f.data <= dF) { let val = parseCurrency(f.faturamento) - getCaixaEvento(f.data, f.estabelecimentoId); let dow = safeDate(f.data).getDay(); somaRealPorDia[dow] += val; } });
+      
+      if (dashboardPizzaInstance) dashboardPizzaInstance.destroy();
+      dashboardPizzaInstance = new Chart($('dashboardPizzaDiaSemanaChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: diasSemana,
+          datasets: [{ label: 'Faturamento Líquido', data: somaRealPorDia, backgroundColor: ['#3498db', '#e74c3c', '#2ecc71', '#9b59b6', '#f1c40f', '#e67e22', '#1abc9c'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, scales: { y: { display: false }, x: { display: false } } }
+      });
+
+      let scatterData = [];
+      state.faturamentos.forEach(f => {
+        if ((!eId || f.estabelecimentoId === eId) && f.data >= dI && f.data <= dF && parseCurrency(f.faturamento) > 0) {
+          let ind = state.indicadoresDiarios.find(i => i.data === f.data && i.estabelecimentoId === f.estabelecimentoId);
+          if (ind && ind.mesasRealizadas > 0) {
+            scatterData.push({ x: ind.mesasRealizadas, y: parseCurrency(f.faturamento) - getCaixaEvento(f.data, f.estabelecimentoId) });
+          }
+        }
+      });
+
+      if (dashboardScatterInstance) dashboardScatterInstance.destroy();
+      dashboardScatterInstance = new Chart($('dashboardScatterChart').getContext('2d'), {
+        type: 'scatter',
+        data: { datasets: [{ label: 'Mesas vs Fat. Líquido', data: scatterData, backgroundColor: 'rgba(52, 152, 219, 0.6)' }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { x: { title: { display: true, text: 'Número de Mesas' }, beginAtZero: true }, y: { title: { display: true, text: 'Faturamento Líquido (R$)' }, beginAtZero: true, ticks: { callback: v => formatCurrency(v) } } } }
+      });
+    }
+
+    function renderHistorico() {
+      const dI = $('histDataInicio').value, dF = $('histDataFim').value, eId = $('histEstab').value;
+      const filtered = state.faturamentos.filter(f => (!eId || f.estabelecimentoId === eId) && (!dI || f.data >= dI) && (!dF || f.data <= dF)).sort((a, b) => b.data.localeCompare(a.data));
+      let tb = $('historicoTable'); tb.innerHTML = '';
+      if (!filtered.length) { tb.innerHTML = '<tr><td colspan="7">Nenhum lançamento.</td></tr>'; return; }
+      // CORREÇÃO 2: Histórico exibindo Bruto, Caixa Evento e Líquido
+      filtered.forEach(f => { 
+        let ce = getCaixaEvento(f.data, f.estabelecimentoId); 
+        let liq = parseCurrency(f.faturamento) - ce; 
+        let r = tb.insertRow(); 
+        if (parseCurrency(f.faturamento) === 0) r.className = 'row-closed'; 
+        else if (isWeekend(f.data)) r.className = 'row-weekend'; 
+        r.insertCell().textContent = formatDate(f.data); 
+        r.insertCell().textContent = getEstabelecimentoName(f.estabelecimentoId); 
+        r.insertCell().textContent = formatCurrency(parseCurrency(f.faturamento)); 
+        r.insertCell().textContent = ce > 0 ? formatCurrency(ce) : '-'; 
+        r.insertCell().textContent = formatCurrency(liq); 
+        r.insertCell().textContent = escapeHTML(f.observacao || ''); 
+        r.insertCell().innerHTML = '<button class="btn btn-sm btn-info no-print me-1" onclick="editFaturamento(\'' + f.id + '\')">Editar</button><button class="btn btn-sm btn-danger no-print" onclick="deleteFaturamento(\'' + f.id + '\')">Excluir</button>'; 
+      });
+    }
+    function renderIndicadores() {
+      const dI = $('indDataInicio').value, dF = $('indDataFim').value, eId = $('indEstabFilter').value;
+      let filteredInd = state.indicadoresDiarios.filter(i => (!eId || i.estabelecimentoId === eId) && (!dI || i.data >= dI) && (!dF || i.data <= dF));
+      let dates = [...new Set(filteredInd.map(i => i.data))].sort((a,b) => b.localeCompare(a.data)); let estabs = state.estabelecimentos.filter(e => !eId || e.id === eId);
+      let totMesasPeriodo = 0, totFatPeriodo = 0, diasComMesas = 0;
+      filteredInd.forEach(ind => { totMesasPeriodo += ind.mesasRealizadas; diasComMesas++; let fatObj = state.faturamentos.find(f => f.data === ind.data && f.estabelecimentoId === ind.estabelecimentoId); if (fatObj) totFatPeriodo += (parseCurrency(fatObj.faturamento) - getCaixaEvento(fatObj.data, fatObj.estabelecimentoId)); });
+      $('indTotalMesas').textContent = totMesasPeriodo.toLocaleString('pt-BR'); $('indMedMesas').textContent = diasComMesas > 0 ? (totMesasPeriodo / diasComMesas).toFixed(0) : '0'; $('indMedTkt').textContent = totMesasPeriodo > 0 ? formatCurrency(totFatPeriodo / totMesasPeriodo) : 'R$ 0,00';
+      let tb = $('indicadoresDiariosTable'); tb.innerHTML = ''; let thead = $('indicadoresDiariosHead'); thead.innerHTML = '';
+      if (!filteredInd.length) { thead.innerHTML = '<tr><th>Mensagem</th></tr>'; tb.innerHTML = '<tr><td>Nenhum indicador cadastrado.</td></tr>'; return; }
+      let headerRow = '<tr><th rowspan="2">Data</th>'; estabs.forEach(e => { headerRow += '<th class="text-center" colspan="2">' + escapeHTML(e.nome) + '</th>'; }); headerRow += '<th rowspan="2" class="no-print">Ações</th></tr>';
+      let subHeaderRow = '<tr>'; estabs.forEach(e => { subHeaderRow += '<th class="text-center small">Mesas</th><th class="text-center small">Tkt Médio</th>'; }); subHeaderRow += '</tr>'; thead.innerHTML = headerRow + subHeaderRow;
+      dates.forEach(d => { let r = tb.insertRow(); if (isWeekend(d)) r.className = 'row-weekend'; r.insertCell().textContent = formatDate(d); let actionsHtml = ''; estabs.forEach(e => { let ind = state.indicadoresDiarios.find(i => i.data === d && i.estabelecimentoId === e.id); let fatObj = state.faturamentos.find(f => f.data === d && f.estabelecimentoId === e.id); let fatVal = fatObj ? (parseCurrency(fatObj.faturamento) - getCaixaEvento(fatObj.data, fatObj.estabelecimentoId)) : 0; let mesas = ind ? ind.mesasRealizadas : '-'; let tkt = (ind && ind.mesasRealizadas > 0 && fatVal > 0) ? (fatVal / ind.mesasRealizadas) : 0; r.insertCell().textContent = mesas; r.insertCell().textContent = tkt > 0 ? formatCurrency(tkt) : '-'; actionsHtml += '<button class="btn btn-sm btn-warning py-0 px-1 mb-1" onclick="editIndicador(\'' + d + '\',\'' + e.id + '\')">' + escapeHTML(e.nome.substring(0,3)) + '</button> '; }); r.insertCell().innerHTML = '<div class="btn-group btn-group-sm">' + actionsHtml + '</div>'; });
+    }
+    function renderMetas() {
+      let tbM = $('metasTable'); tbM.innerHTML = '';
+      [...state.metas].sort((a,b) => a.mes.localeCompare(b.mes)).forEach(m => { let r = tbM.insertRow(); r.insertCell().textContent = getMonthYearFromISO(m.mes); r.insertCell().textContent = getEstabelecimentoName(m.estabelecimentoId); r.insertCell().textContent = formatCurrency(parseCurrency(m.faturamentoAlvo)); r.insertCell().textContent = formatCurrency(parseCurrency(m.ticketMedioAlvo)); r.insertCell().textContent = m.mesasAlvo; r.insertCell().innerHTML = '<button class="btn btn-sm btn-info no-print me-1" onclick="editMeta(\'' + m.id + '\')">Editar</button><button class="btn btn-sm btn-danger no-print" onclick="deleteMeta(\'' + m.id + '\')">Excluir</button>'; });
+    }
+    function renderEventos() {
+      let tb = $('eventosTable'); tb.innerHTML = '';
+      [...state.eventos].sort((a,b) => b.data.localeCompare(a.data)).forEach(e => {
+        let r = tb.insertRow(); if (e.tipo === 'fechado') r.className = 'row-closed';
+        r.insertCell().textContent = formatDate(e.data); r.insertCell().textContent = e.dataFim ? formatDate(e.dataFim) : '-'; r.insertCell().textContent = escapeHTML(e.nome); r.insertCell().textContent = e.tipo;
+        let histImpact = getImpactoEventoHistorico(e, e.estabelecimentoId || state.estabelecimentos[0]?.id, e.data); let histCell = r.insertCell();
+        if (histImpact !== null) { histCell.textContent = (histImpact > 0 ? '+' : '') + histImpact.toFixed(1) + '%'; histCell.className = histImpact >= 0 ? 'diff-positive' : 'diff-negative'; } else { histCell.textContent = 'Sem histórico'; histCell.className = 'text-muted'; }
+        let impCell = r.insertCell(); let imp = parseFloat(e.impactoEsperado) || 0; impCell.textContent = (imp > 0 ? '+' : '') + imp + '%'; if (imp > 0) impCell.className = 'diff-positive'; else if (imp < 0) impCell.className = 'diff-negative';
+        r.insertCell().textContent = e.estabelecimentoId ? getEstabelecimentoName(e.estabelecimentoId) : 'Todos';
+        r.insertCell().innerHTML = '<button class="btn btn-sm btn-info no-print me-1" onclick="editEvento(\'' + e.id + '\')">Editar</button><button class="btn btn-sm btn-danger no-print" onclick="deleteEvento(\'' + e.id + '\')">Excluir</button>';
+      });
+    }
+
+    async function importarFeriadosBR() {
+      const ano = $('feriadosAno').value || new Date().getFullYear();
+      const msg = $('msgFeriadosAPI'); msg.style.display = 'none'; msg.className = 'alert-message';
+      try {
+        const resp = await fetch(`https://brasilapi.com.br/api/feriados/v1/${ano}`);
+        if (!resp.ok) throw new Error('Falha na BrasilAPI');
+        const feriados = await resp.json();
+        let count = 0;
+        feriados.forEach(f => {
+          let existing = state.eventos.find(e => e.data === f.date && e.nome === f.name);
+          if (!existing) {
+            state.eventos.push({ id: generateId(), data: f.date, dataFim: '', nome: f.name, tipo: 'feriado', estabelecimentoId: '', cidade: '', impactoEsperado: 0 });
+            count++;
+          }
+        });
+        saveState(); renderEventos(); renderDashboard(); fillAnaliseEventosSelect();
+        msg.textContent = `Sucesso! ${count} feriados de ${ano} importados.`;
+        msg.classList.add('alert-success');
+      } catch(err) {
+        msg.textContent = "Erro ao buscar BrasilAPI: " + err.message;
+        msg.classList.add('alert-danger');
+      } finally {
+        msg.style.display = 'block';
+      }
+    }
+
+    function exportPrevisaoToExcel() {
+      if (!lastPrevisaoResult.length) return alert("Nenhuma projeção gerada para exportar.");
+      let estabId = $('prevEstab').value; let startStr = $('prevInicio').value; let anoAtual = safeDate(startStr).getFullYear(); let anoAnterior = anoAtual - 1; let fatAnoAnterior = state.faturamentos.filter(f => f.estabelecimentoId === estabId && f.data.startsWith(anoAnterior + '-'));
+      let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; csvContent += "Data;Dia;Mesas Previstas;Ticket Previsto;Faturamento Previsto;Desvio Manual (%);Faturamento Real;Real Ano Anterior (Corrigido);Desvio vs Ano Ant. (%);Desvio (%);Evento\n";
+      lastPrevisaoResult.forEach(p => { let realStr = p.real !== null && p.real !== undefined ? p.real.toFixed(2).replace('.', ',') : ''; let prevStr = p.previsto.toFixed(2).replace('.', ','); let tktStr = p.tkt.toFixed(2).replace('.', ','); let desvioManualStr = (p.desvioManual || 0).toFixed(1).replace('.', ',') + '%'; let realAnoAnt = getSazonalAnoAnterior(p.data, fatAnoAnterior, anoAtual); let realAnoAntStr = realAnoAnt !== null ? realAnoAnt.toFixed(2).replace('.', ',') : ''; let desvioAnoAntStr = (realAnoAnt !== null && realAnoAnt > 0 && p.previsto > 0) ? (((p.previsto - realAnoAnt) / realAnoAnt) * 100).toFixed(1).replace('.', ',') + '%' : ''; let desvioStr = p.real !== null && p.real !== undefined && p.previsto > 0 ? (((p.real - p.previsto) / p.previsto) * 100).toFixed(1).replace('.', ',') + '%' : ''; csvContent += formatDate(p.data) + ';' + p.dia + ';' + p.mesas + ';' + tktStr + ';' + prevStr + ';' + desvioManualStr + ';' + realStr + ';' + realAnoAntStr + ';' + desvioAnoAntStr + ';' + desvioStr + ';' + (p.evt || '') + '\n'; });
+      let encodedUri = encodeURI(csvContent); let link = document.createElement("a"); link.setAttribute("href", encodedUri); link.setAttribute("download", "auditoria_previsao_faturamento.csv"); document.body.appendChild(link); link.click(); link.remove();
+    }
+    function exportToExcel() { exportPrevisaoToExcel(); }
+
+    function showFaturamentoModal() { $('formFaturamento').reset(); $('fatId').value = ''; $('fatData').value = isoDate(new Date()); fillSelect('fatEstab'); $('fatCaixaEvento').value = ''; $('modalFaturamento').showModal(); }
+    function editFaturamento(id) { let f = state.faturamentos.find(x => x.id === id); if (!f) return; $('fatId').value = f.id; $('fatData').value = f.data; fillSelect('fatEstab', f.estabelecimentoId); $('fatValor').value = f.faturamento; $('fatCaixaEvento').value = getCaixaEvento(f.data, f.estabelecimentoId) || ''; $('fatObs').value = f.observacao || ''; $('modalFaturamento').showModal(); }
+    function saveFaturamentoManual(e) { 
+      e.preventDefault(); 
+      let id = $('fatId').value || generateId(), data = $('fatData').value, estabelecimentoId = $('fatEstab').value, faturamento = parseCurrency($('fatValor').value), observacao = $('fatObs').value; 
+      let caixaEvento = parseCurrency($('fatCaixaEvento').value); 
+      if (!data || !estabelecimentoId || faturamento < 0) return alert("Preencha os campos corretamente."); 
+      
+      // Salva Faturamento
+      let existingIdx = state.faturamentos.findIndex(x => x.data === data && x.estabelecimentoId === estabelecimentoId && x.id !== id); 
+      if (existingIdx !== -1) { state.faturamentos[existingIdx].faturamento = faturamento; state.faturamentos[existingIdx].observacao = observacao; } 
+      else { let idx = state.faturamentos.findIndex(x => x.id === id); if (idx !== -1) state.faturamentos[idx] = { id, data, estabelecimentoId, faturamento, observacao }; else state.faturamentos.push({ id, data, estabelecimentoId, faturamento, observacao }); } 
+      
+      // Salva Caixa Evento
+      let ceIdx = state.caixaEventos.findIndex(c => c.data === data && c.estabelecimentoId === estabelecimentoId);
+      if (caixaEvento > 0) {
+        if (ceIdx !== -1) state.caixaEventos[ceIdx].valor = caixaEvento;
+        else state.caixaEventos.push({ id: generateId(), data, estabelecimentoId, valor: caixaEvento });
+      } else {
+        if (ceIdx !== -1) state.caixaEventos.splice(ceIdx, 1);
+      }
+      
+      saveState(); $('modalFaturamento').close(); renderDashboard(); renderHistorico(); 
+    }
+    function deleteFaturamento(id) { if(confirm("Deseja excluir?")) { state.faturamentos = state.faturamentos.filter(x => x.id !== id); saveState(); renderHistorico(); renderDashboard(); } }
+
+    function showIndicadorModal() { $('formIndicador').reset(); $('indId').value = ''; $('indData').value = isoDate(new Date()); fillSelect('indEstab'); $('modalIndicador').showModal(); }
+    function editIndicador(date, estabId) { let ind = state.indicadoresDiarios.find(i => i.data === date && i.estabelecimentoId === estabId); if (!ind) { showIndicadorModal(); $('indData').value = date; fillSelect('indEstab', estabId); return; } $('indId').value = ind.id; $('indData').value = ind.data; fillSelect('indEstab', ind.estabelecimentoId); $('indMesas').value = ind.mesasRealizadas; $('modalIndicador').showModal(); }
+    function saveIndicadorManual(e) { e.preventDefault(); let id = $('indId').value || generateId(), data = $('indData').value, estabelecimentoId = $('indEstab').value, mesasRealizadas = parseInt($('indMesas').value) || 0; if (!data || !estabelecimentoId) return alert("Preencha os campos."); let existing = state.indicadoresDiarios.findIndex(x => x.data === data && x.estabelecimentoId === estabelecimentoId && x.id !== id); if (existing !== -1) state.indicadoresDiarios[existing].mesasRealizadas = mesasRealizadas; else { let idx = state.indicadoresDiarios.findIndex(x => x.id === id); if (idx !== -1) { state.indicadoresDiarios[idx].data = data; state.indicadoresDiarios[idx].estabelecimentoId = estabelecimentoId; state.indicadoresDiarios[idx].mesasRealizadas = mesasRealizadas; } else state.indicadoresDiarios.push({ id, data, estabelecimentoId, mesasRealizadas }); } saveState(); $('modalIndicador').close(); renderIndicadores(); }
+
+    function editMeta(id) { let m = state.metas.find(x => x.id === id); if (!m) return; $('metaId').value = m.id; $('metaMes').value = m.mes; fillSelect('metaEstab', m.estabelecimentoId); $('metaFaturamento').value = m.faturamentoAlvo; $('metaTicketMedio').value = m.ticketMedioAlvo; calcMesasMeta(); window.scrollTo(0, 0); }
+    function deleteMeta(id) { if(confirm("Deseja excluir?")) { state.metas = state.metas.filter(x => x.id !== id); saveState(); renderMetas(); renderDashboard(); } }
+
+    function editEvento(id) { let ev = state.eventos.find(x => x.id === id); if (!ev) return; $('eventoId').value = ev.id; $('eventoData').value = ev.data; $('eventoDataFim').value = ev.dataFim || ''; $('eventoNome').value = ev.nome; $('eventoTipo').value = ev.tipo; fillSelect('eventoEstab', ev.estabelecimentoId || ''); $('eventoCidade').value = ev.cidade || ''; $('eventoImpacto').value = ev.impactoEsperado || 0; document.getElementById('formEventosCard').scrollIntoView({behavior:'smooth'}); }
+    function deleteEvento(id) { if(confirm("Deseja excluir?")) { state.eventos = state.eventos.filter(x => x.id !== id); saveState(); renderEventos(); } }
+
+    function parseCSVLine(line, separator) { let values = [], current = '', inQuotes = false; for (let i = 0; i < line.length; i++) { let char = line[i]; if (char === '"') inQuotes = !inQuotes; else if (char === separator && !inQuotes) { values.push(current); current = ''; } else current += char; } values.push(current); return values.map(v => v.trim()); }
+    function parseCSV(csvString) { let cleanString = csvString.replace(/^\uFEFF/, ''); let lines = cleanString.trim().split(/\r?\n/); if (!lines.length) return []; let sep = lines[0].includes(';') ? ';' : ','; let headers = parseCSVLine(lines[0], sep).map(h => h.trim().toLowerCase()); let data = []; for (let i = 1; i < lines.length; i++) { if (!lines[i].trim()) continue; let values = parseCSVLine(lines[i], sep).map(v => v.trim()); if (values.length === 1 && values[0].includes(sep === ';' ? ',' : ';')) { values = parseCSVLine(lines[i], sep === ';' ? ',' : ';').map(v => v.trim()); } let row = {}; headers.forEach((h, idx) => row[h] = values[idx] !== undefined ? values[idx] : ''); row._col0 = values[0] || ''; row._col1 = values[1] || ''; row._col2 = values[2] || ''; row._col3 = values[3] || ''; row._col4 = values[4] || ''; row._col5 = values[5] || ''; row._col6 = values[6] || ''; data.push(row); } return data; }
+    function handleImport(fileInputId, msgDivId, importFunc) { let input = $(fileInputId), msg = $(msgDivId); msg.style.display = 'none'; msg.className = 'alert-message'; if (!input.files.length) { msg.textContent = "Selecione um arquivo CSV."; msg.classList.add('alert-danger'); msg.style.display = 'block'; return; } let reader = new FileReader(); reader.onload = function(e) { try { let parsed = parseCSV(e.target.result); let res = importFunc(parsed); msg.textContent = 'Sucesso: ' + res.imported + ' processados/atualizados, ' + res.skipped + ' ignorados.'; msg.classList.add('alert-success'); } catch(err) { msg.textContent = "Erro ao importar: " + err.message; msg.classList.add('alert-danger'); } finally { msg.style.display = 'block'; input.value = ''; saveState(); fillSelects(); renderDashboard(); renderHistorico(); renderIndicadores(); } }; reader.readAsText(input.files[0], 'UTF-8'); }
+    
+    // CORREÇÃO 2: Suporte a caixa_evento na importação
+    function importFaturamento(data) { 
+      let imported = 0, skipped = 0; 
+      data.forEach(row => { 
+        let d = dateFromISO(row.data || row._col0), est = row.estabelecimento || row._col1, val = parseCurrency(row.faturamento || row._col2); 
+        let ceVal = parseCurrency(row.caixa_evento || row._col4 || 0);
+        if (!d || !est || val < 0) { skipped++; return; } 
+        addEstabelecimento(est); 
+        let estabId = state.estabelecimentos.find(e => e.nome.toLowerCase() === est.toLowerCase()).id; 
+        let dataIso = isoDate(d); 
+        let existing = state.faturamentos.findIndex(x => x.data === dataIso && x.estabelecimentoId === estabId); 
+        if (existing !== -1) { state.faturamentos[existing].faturamento = val; if(row.observacao || row._col3) state.faturamentos[existing].observacao = row.observacao || row._col3; } 
+        else state.faturamentos.push({ id: generateId(), data: dataIso, estabelecimentoId: estabId, faturamento: val, observacao: row.observacao || row._col3 || '' }); 
+        
+        if (ceVal > 0) {
+          let ceIdx = state.caixaEventos.findIndex(c => c.data === dataIso && c.estabelecimentoId === estabId);
+          if (ceIdx !== -1) state.caixaEventos[ceIdx].valor = ceVal;
+          else state.caixaEventos.push({ id: generateId(), data: dataIso, estabelecimentoId: estabId, valor: ceVal });
+        }
+        imported++; 
+      }); 
+      return { imported, skipped }; 
+    }
+    function importIndicadoresDiarios(data) { let imported = 0, skipped = 0; data.forEach(row => { let d = dateFromISO(row.data || row._col0), est = row.estabelecimento || row._col1, mesas = parseInt(row.mesas_realizadas || row._col2) || 0; if (!d || !est) { skipped++; return; } addEstabelecimento(est); let estabId = state.estabelecimentos.find(e => e.nome.toLowerCase() === est.toLowerCase()).id; let dataIso = isoDate(d); let existing = state.indicadoresDiarios.findIndex(x => x.data === dataIso && x.estabelecimentoId === estabId); if (existing !== -1) state.indicadoresDiarios[existing].mesasRealizadas = mesas; else state.indicadoresDiarios.push({ id: generateId(), data: dataIso, estabelecimentoId: estabId, mesasRealizadas: mesas }); imported++; }); return { imported, skipped }; }
+    function importEventos(data) { let imported = 0, skipped = 0; data.forEach(row => { let d = dateFromISO(row.data || row._col0), nome = row.nome || row._col2, tipo = row.tipo || row._col3; if (!d || !nome || !tipo) { skipped++; return; } let estabId = '', estName = row.estabelecimento || row._col5; if (estName) { addEstabelecimento(estName); estabId = state.estabelecimentos.find(e => e.nome.toLowerCase() === estName.toLowerCase()).id; } let dataIso = isoDate(d); let impacto = parseFloat(row.impacto || row._col6) || 0; let existing = state.eventos.findIndex(x => x.data === dataIso && x.nome === nome && x.estabelecimentoId === estabId); if (existing === -1) state.eventos.push({ id: generateId(), data: dataIso, dataFim: (row.data_fim || row._col1) ? isoDate(dateFromISO(row.data_fim || row._col1)) : '', nome, tipo, estabelecimentoId: estabId, cidade: row.cidade || row._col4 || '', impactoEsperado: impacto }); imported++; }); return { imported, skipped }; }
+
+    function exportJSON() { let dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state)); let dl = document.createElement('a'); dl.setAttribute("href", dataStr); dl.setAttribute("download", "backup_bi_faturamento.json"); document.body.appendChild(dl); dl.click(); dl.remove(); }
+    function importJSON(e) { let file = e.target.files[0]; if (!file) return; let reader = new FileReader(); reader.onload = function(evt) { try { state = JSON.parse(evt.target.result); saveState(); fillSelects(); renderDashboard(); renderHistorico(); renderIndicadores(); alert("Backup restaurado!"); } catch(err) { alert("Erro ao ler JSON: " + err.message); } }; reader.readAsText(file); }
+    function resetData() { if (confirm("Deseja apagar todos os dados e reiniciar o sistema?")) { localStorage.removeItem('biPrevisaoState'); location.reload(); } }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadState(); fillSelects();
+      document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+      $('formMetas').addEventListener('submit', e => { e.preventDefault(); let id = $('metaId').value || generateId(); let m = { id, mes: $('metaMes').value, estabelecimentoId: $('metaEstab').value, faturamentoAlvo: parseCurrency($('metaFaturamento').value), ticketMedioAlvo: parseCurrency($('metaTicketMedio').value), mesasAlvo: parseInt($('metaMesas').value) || 0 }; if (!m.mes || !m.estabelecimentoId || m.faturamentoAlvo <= 0) return alert("Preencha todos os campos."); let idx = state.metas.findIndex(x => x.id === id); if (idx !== -1) state.metas[idx] = m; else state.metas.push(m); saveState(); clearMetaForm(); fillSelects(); renderMetas(); renderDashboard(); alert("Meta salva!"); });
+      $('formEventos').addEventListener('submit', e => { e.preventDefault(); let id = $('eventoId').value || generateId(); let ev = { id, data: $('eventoData').value, dataFim: $('eventoDataFim').value, nome: $('eventoNome').value, tipo: $('eventoTipo').value, estabelecimentoId: $('eventoEstab').value, cidade: $('eventoCidade').value, impactoEsperado: parseFloat($('eventoImpacto').value) || 0 }; if (!ev.data || !ev.nome || !ev.tipo) return alert("Preencha os campos obrigatórios."); let idx = state.eventos.findIndex(x => x.id === id); if (idx !== -1) state.eventos[idx] = ev; else state.eventos.push(ev); saveState(); renderEventos(); fillAnaliseEventosSelect(); $('formEventos').reset(); $('eventoId').value = ''; $('eventoImpacto').value = 0; alert("Evento salvo!"); });
+      $('formConfigNovoNegocio').addEventListener('submit', e => { e.preventDefault(); state.config.novoNegocio = { fatBase: parseCurrency($('cfgNovoFat').value), mesasBase: parseInt($('cfgNovoMesas').value) || 50, tktBase: parseCurrency($('cfgNovoTkt').value) }; saveState(); alert("Configurações de novo negócio salvas!"); });
+      $('formConfigMotor').addEventListener('submit', e => { e.preventDefault(); state.config.motor = { inflacaoMensal: parseFloat($('cfgInflacaoMensal').value) || 0.33, pesoRecente: parseFloat($('cfgPesoRecente').value) || 70, outlierThreshold: parseFloat($('cfgOutlierThreshold').value) || 2.5, weatherApiKey: $('cfgWeatherApiKey').value || '', weatherCidade: $('cfgWeatherCidade').value || '' }; saveState(); alert("Parâmetros do Motor Preditivo salvos com sucesso!"); });
+      $('btnGerarPrevisao').addEventListener('click', renderPrevisao);
+      $('btnImportarFat').addEventListener('click', () => handleImport("fileFaturamento", "msgImportFat", importFaturamento));
+      $('btnImportarIndicadoresDiarios').addEventListener('click', () => handleImport("fileIndicadoresDiarios", "msgImportIndicadoresDiarios", importIndicadoresDiarios));
+      $('btnImportarEventos').addEventListener('click', () => handleImport("fileEventos", "msgImportEventos", importEventos));
+      renderDashboard(); renderHistorico(); renderIndicadores(); renderMetas(); renderEventos(); renderPrevisao();
+    });
+    function clearHistFilters() { $('histDataInicio').value=''; $('histDataFim').value=''; $('histEstab').value=''; renderHistorico(); }
+  </script>
+</body>
+</html>
