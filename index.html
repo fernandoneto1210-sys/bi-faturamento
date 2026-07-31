@@ -403,6 +403,7 @@
             </div>
             <div class="col-md-4 d-flex align-items-end justify-content-end">
               <button id="btnGerarPrevisao" class="btn btn-success btn-sm me-2">Rodar Motor Preditivo</button>
+              <button id="btnIACalibracao" class="btn btn-primary btn-sm me-2" onclick="buscarAjusteIA()">🧠 Calibrar via IA</button>
               <button id="btnSalvarAjustes" class="btn btn-warning btn-sm" onclick="salvarAjustesPrevisao()">Salvar Ajustes Manuais</button>
             </div>
           </div>
@@ -461,8 +462,21 @@
               <div class="col-md-8"><label class="form-label">API Key OpenWeather (Opcional)</label><input type="text" id="cfgWeatherApiKey" class="form-control" placeholder="Insira sua chave gratuita" value=""><small class="text-muted">Se preenchido, aplica ajuste de -15% em dias de chuva.</small></div>
               <div class="col-md-4"><label class="form-label">Cidade para Clima</label><input type="text" id="cfgWeatherCidade" class="form-control" placeholder="Ex: São Paulo" value=""></div>
             </div>
-            <button type="submit" class="btn btn-primary btn-sm">Salvar Parâmetros do Motor</button>
-          </form>
+           <div class="row mb-3">
+    <div class="col-md-6">
+      <label class="form-label">API Key Groq Cloud</label>
+      <input type="password" id="cfgGroqApiKey" class="form-control" placeholder="gsk_...">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Modelo Groq</label>
+      <input type="text" id="cfgGroqModel" class="form-control" value="llama-3.3-70b-versatile">
+    </div>
+    <div class="col-md-2 d-flex align-items-end">
+      <button type="button" class="btn btn-info btn-sm w-100" onclick="testarConexaoIA()">Testar IA</button>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary btn-sm">Salvar Parâmetros do Motor</button>
+</form>
         </div>
       </div>
 
@@ -499,7 +513,16 @@
     function escapeHTML(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function getCaixaEvento(data, estabId) { let ce = state.caixaEventos.find(c => c.data === data && c.estabelecimentoId === estabId); return ce ? (parseFloat(ce.valor) || 0) : 0; }
 
-    function saveState() { localStorage.setItem('biPrevisaoState', JSON.stringify(state)); }
+    function saveState() {
+      try {
+        localStorage.setItem('biPrevisaoState', JSON.stringify(state));
+      } catch(err) {
+        console.error("Erro ao salvar no localStorage:", err);
+        if (err.name === 'QuotaExceededError') {
+          alert("ATENÇÃO: O armazenamento do navegador está cheio! Exporte um backup e limpe dados antigos.");
+        }
+      }
+    }
     function loadState() {
       const s = localStorage.getItem('biPrevisaoState');
       if (s) {
@@ -507,7 +530,8 @@
         ['faturamentos','estabelecimentos','metas','eventos','indicadoresDiarios','caixaEventos'].forEach(k => state[k] = state[k] || []);
         state.config = state.config || {};
         state.ajustesPrevisao = state.ajustesPrevisao || {};
-        if (!state.config.motor) state.config.motor = { inflacaoMensal: 0.33, pesoRecente: 70, outlierThreshold: 2.5, weatherApiKey: '', weatherCidade: '' };
+        if (!state.config.motor) state.config.motor = { inflacaoMensal: 0.33, pesoRecente: 70, outlierThreshold: 2.5, weatherApiKey: '', weatherCidade: '', geminiApiKey: '', geminiModel: 'google/gemini-2.0-flash-exp:free' };
+        if (!state.config.motor.geminiModel) state.config.motor.geminiModel = 'google/gemini-2.0-flash-exp:free';
         if (!state.config.metasDiarias) state.config.metasDiarias = [0,0,0,0,0,0,0];
         
         let fatMap = new Map(); state.faturamentos.forEach(f => fatMap.set(f.data + '_' + f.estabelecimentoId, f)); state.faturamentos = Array.from(fatMap.values());
@@ -535,7 +559,7 @@
       if ($('indDataFim')) $('indDataFim').value = isoDate(t);
       if ($('indDataInicio')) $('indDataInicio').value = isoDate(new Date(t.getFullYear(), t.getMonth(), 1));
       if (state.config.novoNegocio) { if ($('cfgNovoFat')) $('cfgNovoFat').value = state.config.novoNegocio.fatBase || ''; if ($('cfgNovoMesas')) $('cfgNovoMesas').value = state.config.novoNegocio.mesasBase || ''; if ($('cfgNovoTkt')) $('cfgNovoTkt').value = state.config.novoNegocio.tktBase || ''; }
-      if (state.config.motor) { if ($('cfgInflacaoMensal')) $('cfgInflacaoMensal').value = state.config.motor.inflacaoMensal ?? 0.33; if ($('cfgPesoRecente')) $('cfgPesoRecente').value = state.config.motor.pesoRecente ?? 70; if ($('cfgOutlierThreshold')) $('cfgOutlierThreshold').value = state.config.motor.outlierThreshold ?? 2.5; if ($('cfgWeatherApiKey')) $('cfgWeatherApiKey').value = state.config.motor.weatherApiKey || ''; if ($('cfgWeatherCidade')) $('cfgWeatherCidade').value = state.config.motor.weatherCidade || ''; }
+      if (state.config.motor) { if ($('cfgInflacaoMensal')) $('cfgInflacaoMensal').value = state.config.motor.inflacaoMensal ?? 0.33; if ($('cfgPesoRecente')) $('cfgPesoRecente').value = state.config.motor.pesoRecente ?? 70; if ($('cfgOutlierThreshold')) $('cfgOutlierThreshold').value = state.config.motor.outlierThreshold ?? 2.5; if ($('cfgWeatherApiKey')) $('cfgWeatherApiKey').value = state.config.motor.weatherApiKey || ''; if ($('cfgWeatherCidade')) $('cfgWeatherCidade').value = state.config.motor.weatherCidade || ''; if ($('cfgGeminiApiKey')) $('cfgGeminiApiKey').value = state.config.motor.geminiApiKey || ''; if ($('cfgGeminiModel')) $('cfgGeminiModel').value = state.config.motor.geminiModel || 'google/gemini-2.0-flash-exp:free'; }
       if (state.config.metasDiarias) { ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach((d, i) => { if ($('meta' + d)) $('meta' + d).value = state.config.metasDiarias[i] ? formatCurrency(state.config.metasDiarias[i]).replace('R$ ', '') : ''; }); }
     }
     function setView(viewId) {
@@ -863,7 +887,6 @@
         let evtCell = row.insertCell(); evtCell.textContent = escapeHTML(p.evt); if (p.evtImpactoPct && p.evtImpactoPct !== 0) { evtCell.style.fontSize = '0.8em'; }
       });
       let diffTotalPerc = somaPrev > 0 && somaReal > 0 ? ((somaReal - somaPrev) / somaPrev) * 100 : 0; let desvioAnoAntTotal = somaRealAnoAnt > 0 && somaPrev > 0 ? ((somaPrev - somaRealAnoAnt) / somaRealAnoAnt) * 100 : 0; let tf = $('previsaoTableFoot');
-      // CORREÇÃO 1: Adicionado o total da previsão no rodapé
       tf.innerHTML = '<tr><th colspan="4" class="text-end">TOTAIS:</th><th>' + formatCurrency(somaPrev) + '</th><th>-</th><th>' + (somaReal > 0 ? formatCurrency(somaReal) : '-') + '</th><th>' + (somaRealAnoAnt > 0 ? formatCurrency(somaRealAnoAnt) : '-') + '</th><th class="' + (desvioAnoAntTotal >= 0 ? 'diff-positive' : 'diff-negative') + '">' + (countRealAnoAnt > 0 ? desvioAnoAntTotal.toFixed(1) + '%' : '-') + '</th><th class="' + (diffTotalPerc >= 0 ? 'diff-positive' : 'diff-negative') + '">' + (somaReal > 0 ? diffTotalPerc.toFixed(1) + '%' : '-') + '</th><th>Consolidado</th></tr>';
       atualizarGraficoPrevisao(dadosParaTabela);
     }
@@ -891,7 +914,6 @@
           else if (state.estabelecimentos.length > 0) { let sumAll = 0; state.estabelecimentos.forEach(est => { let res = runPredictiveEngine(est.id, isoDate(today), daysToProject); sumAll += res.reduce((s, r) => s + r.previsto, 0); }); projPeriod = totFatLiquido + sumAll; }
         }
         
-        // CORREÇÃO 2: Dashboard exibindo Bruto, Caixa Evento e Líquido
         $('dashboardFatTotal').textContent = formatCurrency(totFat);
         $('dashboardDiasUteis').innerHTML = `${diasUteisApurados} dias apurados<br>Caixa Evento: -${formatCurrency(totCaixaEvento)}<br><strong>Líquido: ${formatCurrency(totFatLiquido)}</strong>`;
         
@@ -996,7 +1018,6 @@
       const filtered = state.faturamentos.filter(f => (!eId || f.estabelecimentoId === eId) && (!dI || f.data >= dI) && (!dF || f.data <= dF)).sort((a, b) => b.data.localeCompare(a.data));
       let tb = $('historicoTable'); tb.innerHTML = '';
       if (!filtered.length) { tb.innerHTML = '<tr><td colspan="7">Nenhum lançamento.</td></tr>'; return; }
-      // CORREÇÃO 2: Histórico exibindo Bruto, Caixa Evento e Líquido
       filtered.forEach(f => { 
         let ce = getCaixaEvento(f.data, f.estabelecimentoId); 
         let liq = parseCurrency(f.faturamento) - ce; 
@@ -1085,12 +1106,10 @@
       let caixaEvento = parseCurrency($('fatCaixaEvento').value); 
       if (!data || !estabelecimentoId || faturamento < 0) return alert("Preencha os campos corretamente."); 
       
-      // Salva Faturamento
       let existingIdx = state.faturamentos.findIndex(x => x.data === data && x.estabelecimentoId === estabelecimentoId && x.id !== id); 
       if (existingIdx !== -1) { state.faturamentos[existingIdx].faturamento = faturamento; state.faturamentos[existingIdx].observacao = observacao; } 
       else { let idx = state.faturamentos.findIndex(x => x.id === id); if (idx !== -1) state.faturamentos[idx] = { id, data, estabelecimentoId, faturamento, observacao }; else state.faturamentos.push({ id, data, estabelecimentoId, faturamento, observacao }); } 
       
-      // Salva Caixa Evento
       let ceIdx = state.caixaEventos.findIndex(c => c.data === data && c.estabelecimentoId === estabelecimentoId);
       if (caixaEvento > 0) {
         if (ceIdx !== -1) state.caixaEventos[ceIdx].valor = caixaEvento;
@@ -1117,7 +1136,6 @@
     function parseCSV(csvString) { let cleanString = csvString.replace(/^\uFEFF/, ''); let lines = cleanString.trim().split(/\r?\n/); if (!lines.length) return []; let sep = lines[0].includes(';') ? ';' : ','; let headers = parseCSVLine(lines[0], sep).map(h => h.trim().toLowerCase()); let data = []; for (let i = 1; i < lines.length; i++) { if (!lines[i].trim()) continue; let values = parseCSVLine(lines[i], sep).map(v => v.trim()); if (values.length === 1 && values[0].includes(sep === ';' ? ',' : ';')) { values = parseCSVLine(lines[i], sep === ';' ? ',' : ';').map(v => v.trim()); } let row = {}; headers.forEach((h, idx) => row[h] = values[idx] !== undefined ? values[idx] : ''); row._col0 = values[0] || ''; row._col1 = values[1] || ''; row._col2 = values[2] || ''; row._col3 = values[3] || ''; row._col4 = values[4] || ''; row._col5 = values[5] || ''; row._col6 = values[6] || ''; data.push(row); } return data; }
     function handleImport(fileInputId, msgDivId, importFunc) { let input = $(fileInputId), msg = $(msgDivId); msg.style.display = 'none'; msg.className = 'alert-message'; if (!input.files.length) { msg.textContent = "Selecione um arquivo CSV."; msg.classList.add('alert-danger'); msg.style.display = 'block'; return; } let reader = new FileReader(); reader.onload = function(e) { try { let parsed = parseCSV(e.target.result); let res = importFunc(parsed); msg.textContent = 'Sucesso: ' + res.imported + ' processados/atualizados, ' + res.skipped + ' ignorados.'; msg.classList.add('alert-success'); } catch(err) { msg.textContent = "Erro ao importar: " + err.message; msg.classList.add('alert-danger'); } finally { msg.style.display = 'block'; input.value = ''; saveState(); fillSelects(); renderDashboard(); renderHistorico(); renderIndicadores(); } }; reader.readAsText(input.files[0], 'UTF-8'); }
     
-    // CORREÇÃO 2: Suporte a caixa_evento na importação
     function importFaturamento(data) { 
       let imported = 0, skipped = 0; 
       data.forEach(row => { 
@@ -1125,7 +1143,7 @@
         let ceVal = parseCurrency(row.caixa_evento || row._col4 || 0);
         if (!d || !est || val < 0) { skipped++; return; } 
         addEstabelecimento(est); 
-        let estabId = state.estabelecimentos.find(e => e.nome.toLowerCase() === est.toLowerCase()).id; 
+        let estabId = state.estabelecimentos.find(e => e.nomatorg.toLowerCase() === est.toLowerCase()).id; 
         let dataIso = isoDate(d); 
         let existing = state.faturamentos.findIndex(x => x.data === dataIso && x.estabelecimentoId === estabId); 
         if (existing !== -1) { state.faturamentos[existing].faturamento = val; if(row.observacao || row._col3) state.faturamentos[existing].observacao = row.observacao || row._col3; } 
@@ -1147,13 +1165,86 @@
     function importJSON(e) { let file = e.target.files[0]; if (!file) return; let reader = new FileReader(); reader.onload = function(evt) { try { state = JSON.parse(evt.target.result); saveState(); fillSelects(); renderDashboard(); renderHistorico(); renderIndicadores(); alert("Backup restaurado!"); } catch(err) { alert("Erro ao ler JSON: " + err.message); } }; reader.readAsText(file); }
     function resetData() { if (confirm("Deseja apagar todos os dados e reiniciar o sistema?")) { localStorage.removeItem('biPrevisaoState'); location.reload(); } }
 
+    // ===== FUNÇÕES DA IA (VIA OPENROUTER - PROXY ESTÁVEL) =====
+    async function executarChamadaIA(prompt) {
+  const apiKey = $('cfgGroqApiKey').value;
+  const modelo = $('cfgGroqModel').value || 'llama-3.3-70b-versatile';
+  
+  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model: modelo,
+      messages: [{ role: "user", content: prompt }]
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error?.message || "Erro na API do Groq");
+  return data.choices[0].message.content.trim();
+}
+
+async function testarConexaoIA() {
+  const apiKey = $('cfgGroqApiKey').value.trim();
+  if (!apiKey) return alert("Insira sua chave do Groq.");
+  try {
+    const res = await executarChamadaIA("Responda apenas: OK");
+    alert("✅ Conectado! A IA respondeu: " + res);
+  } catch (error) {
+    alert("❌ Erro: " + error.message);
+  }
+}
+
+async function buscarAjusteIA() {
+  const apiKey = $('cfgGroqApiKey').value;
+  if (!apiKey) return alert("Configure a API Key na aba Configurações.");
+  if (typeof lastPrevisaoResult === 'undefined' || lastPrevisaoResult.length === 0) return alert("Rode o Motor Preditivo antes.");
+
+  let dadosErro = lastPrevisaoResult.filter(p => p.real !== null && p.previsto > 0);
+  const prompt = `Analise estes dados de erro: ${JSON.stringify(dadosErro)}. Retorne APENAS um número (fator de correção) com 3 casas decimais.`;
+  
+  try {
+    $('btnIACalibracao').textContent = "Analisando...";
+    const resposta = await executarChamadaIA(prompt);
+    let match = resposta.match(/\d+\.?\d*/);
+    if (!match) throw new Error("IA não retornou um número válido");
+    
+    let fator = parseFloat(match[0]);
+    $('prevCalibracao').value = 'custom';
+    $('prevCalibracaoCustom').disabled = false;
+    $('prevCalibracaoCustom').value = ((fator - 1) * 100).toFixed(1);
+    alert("✅ IA sugeriu ajuste de " + ((fator - 1) * 100).toFixed(1) + "%");
+    renderPrevisao();
+  } catch (error) { 
+    alert("Erro na calibração: " + error.message);
+  } finally { 
+    $('btnIACalibracao').textContent = "🧠 Calibrar via IA"; 
+  }
+}
+
     document.addEventListener('DOMContentLoaded', () => {
       loadState(); fillSelects();
       document.querySelectorAll(".nav-btn").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
       $('formMetas').addEventListener('submit', e => { e.preventDefault(); let id = $('metaId').value || generateId(); let m = { id, mes: $('metaMes').value, estabelecimentoId: $('metaEstab').value, faturamentoAlvo: parseCurrency($('metaFaturamento').value), ticketMedioAlvo: parseCurrency($('metaTicketMedio').value), mesasAlvo: parseInt($('metaMesas').value) || 0 }; if (!m.mes || !m.estabelecimentoId || m.faturamentoAlvo <= 0) return alert("Preencha todos os campos."); let idx = state.metas.findIndex(x => x.id === id); if (idx !== -1) state.metas[idx] = m; else state.metas.push(m); saveState(); clearMetaForm(); fillSelects(); renderMetas(); renderDashboard(); alert("Meta salva!"); });
       $('formEventos').addEventListener('submit', e => { e.preventDefault(); let id = $('eventoId').value || generateId(); let ev = { id, data: $('eventoData').value, dataFim: $('eventoDataFim').value, nome: $('eventoNome').value, tipo: $('eventoTipo').value, estabelecimentoId: $('eventoEstab').value, cidade: $('eventoCidade').value, impactoEsperado: parseFloat($('eventoImpacto').value) || 0 }; if (!ev.data || !ev.nome || !ev.tipo) return alert("Preencha os campos obrigatórios."); let idx = state.eventos.findIndex(x => x.id === id); if (idx !== -1) state.eventos[idx] = ev; else state.eventos.push(ev); saveState(); renderEventos(); fillAnaliseEventosSelect(); $('formEventos').reset(); $('eventoId').value = ''; $('eventoImpacto').value = 0; alert("Evento salvo!"); });
       $('formConfigNovoNegocio').addEventListener('submit', e => { e.preventDefault(); state.config.novoNegocio = { fatBase: parseCurrency($('cfgNovoFat').value), mesasBase: parseInt($('cfgNovoMesas').value) || 50, tktBase: parseCurrency($('cfgNovoTkt').value) }; saveState(); alert("Configurações de novo negócio salvas!"); });
-      $('formConfigMotor').addEventListener('submit', e => { e.preventDefault(); state.config.motor = { inflacaoMensal: parseFloat($('cfgInflacaoMensal').value) || 0.33, pesoRecente: parseFloat($('cfgPesoRecente').value) || 70, outlierThreshold: parseFloat($('cfgOutlierThreshold').value) || 2.5, weatherApiKey: $('cfgWeatherApiKey').value || '', weatherCidade: $('cfgWeatherCidade').value || '' }; saveState(); alert("Parâmetros do Motor Preditivo salvos com sucesso!"); });
+      $('formConfigMotor').addEventListener('submit', e => { 
+    e.preventDefault(); 
+    state.config.motor = state.config.motor || {}; 
+          if ($('cfgInflacaoMensal')) state.config.motor.inflacaoMensal = parseFloat($('cfgInflacaoMensal').value) || 0.33;
+    if ($('cfgPesoRecente')) state.config.motor.pesoRecente = parseFloat($('cfgPesoRecente').value) || 70;
+    if ($('cfgOutlierThreshold')) state.config.motor.outlierThreshold = parseFloat($('cfgOutlierThreshold').value) || 2.5;
+    if ($('cfgWeatherApiKey')) state.config.motor.weatherApiKey = $('cfgWeatherApiKey').value;
+    if ($('cfgWeatherCidade')) state.config.motor.weatherCidade = $('cfgWeatherCidade').value; 
+        state.config.motor.groqApiKey = $('cfgGroqApiKey').value;
+    state.config.motor.groqModel = $('cfgGroqModel').value || 'llama-3.3-70b-versatile';
+    
+    saveState(); 
+    alert("✅ Parâmetros do Motor Preditivo e IA salvos com sucesso!"); 
+});
       $('btnGerarPrevisao').addEventListener('click', renderPrevisao);
       $('btnImportarFat').addEventListener('click', () => handleImport("fileFaturamento", "msgImportFat", importFaturamento));
       $('btnImportarIndicadoresDiarios').addEventListener('click', () => handleImport("fileIndicadoresDiarios", "msgImportIndicadoresDiarios", importIndicadoresDiarios));
