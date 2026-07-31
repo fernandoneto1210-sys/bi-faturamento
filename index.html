@@ -1252,6 +1252,28 @@ async function buscarAjusteIA() {
       renderDashboard(); renderHistorico(); renderIndicadores(); renderMetas(); renderEventos(); renderPrevisao();
     });
     function clearHistFilters() { $('histDataInicio').value=''; $('histDataFim').value=''; $('histEstab').value=''; renderHistorico(); }
+
+// --- SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA ---
+async function verificarAtualizacao() {
+    const versaoAtual = "1.0"; // Mantenha igual ao que estiver no version.json
+    try {
+        // O "?t=" no final força o navegador a não usar cache do arquivo JSON
+        const resposta = await fetch('version.json?t=' + new Date().getTime());
+        const data = await resposta.json();
+        
+        if (data.version !== versaoAtual) {
+            alert("Uma nova versão do sistema está disponível!");
+            if (confirm("Deseja atualizar agora para garantir o funcionamento correto?")) {
+                location.reload(true); // Recarrega forçando busca no servidor
+            }
+        }
+    } catch (e) {
+        console.log("Verificação de versão em modo local.");
+    }
+}
+
+// Chamar a função ao abrir o sistema
+verificarAtualizacao();
   </script>
 </body>
 </html>
