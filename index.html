@@ -1255,7 +1255,7 @@ async function buscarAjusteIA() {
 
 // --- SISTEMA DE ATUALIZAÇÃO AUTOMÁTICA ---
 async function verificarAtualizacao() {
-    const versaoAtual = "1.0"; // Mantenha igual ao que estiver no version.json
+    const versaoAtual = "1.1"; // Mantenha igual ao que estiver no version.json
     try {
         // O "?t=" no final força o navegador a não usar cache do arquivo JSON
         const resposta = await fetch('version.json?t=' + new Date().getTime());
